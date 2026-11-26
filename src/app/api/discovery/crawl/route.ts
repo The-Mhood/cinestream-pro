@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,6 +28,14 @@ export async function POST(request: NextRequest) {
     !adminEmails.has(user.email.toLowerCase())
   ) {
     return NextResponse.json({ error: "Authorized discovery administrator access required" }, { status: 403 });
+  }
+
+  const rate = checkRateLimit(`discovery:${user.id}`, 5, 10 * 60 * 1000);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: "Discovery rate limit reached. Try again later." },
+      { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+    );
   }
 
   const backendUrl = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL;
