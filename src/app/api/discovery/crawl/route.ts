@@ -15,8 +15,18 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
-  if (user.role !== "admin") {
-    return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  const adminEmails = new Set(
+    (process.env.DISCOVERY_ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  if (
+    user.role !== "admin" ||
+    adminEmails.size === 0 ||
+    !adminEmails.has(user.email.toLowerCase())
+  ) {
+    return NextResponse.json({ error: "Authorized discovery administrator access required" }, { status: 403 });
   }
 
   const backendUrl = process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL;
