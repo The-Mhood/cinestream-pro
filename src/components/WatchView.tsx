@@ -115,7 +115,7 @@ export default function WatchView({
 
       // Find next healthy fallback server
       const fallback = episodeSources.find(
-        (s) => s.id !== failedSource.id && s.status === "active"
+        (s) => s.id !== failedSource.id && s.status === "active" && s.isActive
       );
 
       if (fallback) {
