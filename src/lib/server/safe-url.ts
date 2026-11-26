@@ -1,5 +1,5 @@
 /**
- * Server-side outbound URL policy for media-source registration and health probes.
+ * Server-side outbound URL policy for media-source registration and verification.
  *
  * Only operator-approved HTTPS hosts may be contacted. Configure exact hostnames
  * in STREAM_PROBE_ALLOWED_HOSTS (comma-separated). Redirects are revalidated.
@@ -49,8 +49,7 @@ export function validateOutboundUrl(input: string): URL {
     throw new Error("Private, local, or IP-literal destinations are not permitted");
   }
 
-  const allowed = configuredHosts();
-  if (!allowed.has(hostname)) {
+  if (!configuredHosts().has(hostname)) {
     throw new Error("Source host is not in STREAM_PROBE_ALLOWED_HOSTS");
   }
 
@@ -58,23 +57,61 @@ export function validateOutboundUrl(input: string): URL {
   return url;
 }
 
-export async function probeApprovedUrl(
+function sniffMediaFormat(bytes: Uint8Array): "HLS" | "DASH" | "MP4" | "WEBM" | null {
+  const prefix = new TextDecoder()
+    .decode(bytes.subarray(0, Math.min(bytes.length, 512)))
+    .replace(/^\uFEFF/, "")
+    .trimStart();
+
+  if (prefix.startsWith("#EXTM3U")) return "HLS";
+  if (/<MPD(?:\s|>)/i.test(prefix)) return "DASH";
+
+  if (
+    bytes.length >= 8 &&
+    String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp"
+  ) {
+    return "MP4";
+  }
+
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x1a &&
+    bytes[1] === 0x45 &&
+    bytes[2] === 0xdf &&
+    bytes[3] === 0xa3
+  ) {
+    return "WEBM";
+  }
+
+  return null;
+}
+
+export async function verifyApprovedMediaUrl(
   input: string,
-  timeoutMs = 3000
-): Promise<{ ok: boolean; latencyMs: number; statusCode: number | null }> {
+  expectedFormat = ""
+): Promise<{
+  ok: boolean;
+  latencyMs: number;
+  statusCode: number | null;
+  detectedFormat: string | null;
+}> {
   const startedAt = Date.now();
   let current = validateOutboundUrl(input);
 
   for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), 4000);
     let response: Response;
+
     try {
       response = await fetch(current, {
-        method: "HEAD",
+        method: "GET",
+        headers: {
+          Range: "bytes=0-4095",
+          "User-Agent": "CineStreamPro-MediaVerifier/1.0",
+        },
         redirect: "manual",
         signal: controller.signal,
-        headers: { "User-Agent": "CineStreamPro-SourceHealth/1.0" },
       });
     } finally {
       clearTimeout(timer);
@@ -83,22 +120,69 @@ export async function probeApprovedUrl(
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location");
       if (!location || redirectCount === 3) {
+        await response.body?.cancel().catch(() => undefined);
         return {
           ok: false,
           latencyMs: Date.now() - startedAt,
           statusCode: response.status,
+          detectedFormat: null,
         };
       }
+      await response.body?.cancel().catch(() => undefined);
       current = validateOutboundUrl(new URL(location, current).toString());
       continue;
     }
 
+    if (response.status !== 200 && response.status !== 206) {
+      await response.body?.cancel().catch(() => undefined);
+      return {
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        statusCode: response.status,
+        detectedFormat: null,
+      };
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return {
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        statusCode: response.status,
+        detectedFormat: null,
+      };
+    }
+
+    let firstChunk: Uint8Array | undefined;
+    try {
+      firstChunk = (await reader.read()).value;
+    } finally {
+      await reader.cancel().catch(() => undefined);
+    }
+
+    const detectedFormat = firstChunk
+      ? sniffMediaFormat(firstChunk.subarray(0, 4096))
+      : null;
+    const expected = expectedFormat.trim().toUpperCase();
+    const expectedMatches =
+      !expected ||
+      (expected === "HLS" && detectedFormat === "HLS") ||
+      ((expected === "DASH" || expected === "MPEG-DASH") && detectedFormat === "DASH") ||
+      (expected === "MP4" && detectedFormat === "MP4") ||
+      (expected === "WEBM" && detectedFormat === "WEBM");
+
     return {
-      ok: response.status === 200 || response.status === 206,
+      ok: detectedFormat !== null && expectedMatches,
       latencyMs: Math.max(1, Date.now() - startedAt),
       statusCode: response.status,
+      detectedFormat,
     };
   }
 
-  return { ok: false, latencyMs: Date.now() - startedAt, statusCode: null };
+  return {
+    ok: false,
+    latencyMs: Date.now() - startedAt,
+    statusCode: null,
+    detectedFormat: null,
+  };
 }
