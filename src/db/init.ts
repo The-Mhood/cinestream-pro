@@ -56,9 +56,9 @@ async function initializeDatabase() {
         slug TEXT NOT NULL UNIQUE,
         name TEXT NOT NULL,
         base_url TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'active',
-        avg_latency_ms INTEGER NOT NULL DEFAULT 45,
-        uptime_percent DOUBLE PRECISION NOT NULL DEFAULT 99.2,
+        status TEXT NOT NULL DEFAULT 'unverified',
+        avg_latency_ms INTEGER NOT NULL DEFAULT 0,
+        uptime_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
         total_streams_indexed INTEGER NOT NULL DEFAULT 0,
         last_checked_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
@@ -75,10 +75,10 @@ async function initializeDatabase() {
         language TEXT NOT NULL DEFAULT 'English',
         season INTEGER NOT NULL DEFAULT 1,
         episode INTEGER NOT NULL DEFAULT 1,
-        status TEXT NOT NULL DEFAULT 'active',
-        latency_ms INTEGER NOT NULL DEFAULT 38,
-        is_active BOOLEAN NOT NULL DEFAULT TRUE,
-        success_count INTEGER NOT NULL DEFAULT 12,
+        status TEXT NOT NULL DEFAULT 'pending',
+        latency_ms INTEGER NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT FALSE,
+        success_count INTEGER NOT NULL DEFAULT 0,
         fail_count INTEGER NOT NULL DEFAULT 0,
         last_checked_at TIMESTAMP NOT NULL DEFAULT NOW()
       );

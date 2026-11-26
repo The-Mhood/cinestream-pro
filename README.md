@@ -1,381 +1,124 @@
-# CineStream Aggregator - Complete Setup Guide
-
-A production-ready multi-source streaming aggregator with adaptive HLS playback, real-time health monitoring, and automatic server failover.
-
-## 🚀 Quick Start
-
-### 1. Prerequisites
-- Docker & Docker Compose 2.0+
-- 4GB RAM minimum
-- 2GB free disk space
-
-### 2. Clone & Setup
-```bash
-# Clone repository
-git clone <repo-url> && cd cinestream-aggregator
-
-# Make setup script executable
-chmod +x setup.sh
-
-# Run complete setup
-./setup.sh
-```
-
-### 3. Access Services
-- **Frontend**: http://localhost:3000
-- **API Docs**: http://localhost:8000/docs
-- **Database**: localhost:5432 (user: `user`, password: `pass`)
-- **Redis**: localhost:6379
-
----
-
-## 📋 Service Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CineStream Stack                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Frontend (Next.js:3000)                                    │
-│      ↓                                                      │
-│  Backend API (FastAPI:8000)  ←→  Redis (6379)             │
-│      ↓                                                      │
-│  PostgreSQL (5432)                                          │
-│      ↑                                                      │
-│  Scraper Worker (Scheduler)                                │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+# CineStream Pro
 
----
+CineStream Pro is a Next.js catalogue and multi-source playback application backed by PostgreSQL. It includes account registration, personal watchlists, playback progress, source health verification, and an optional FastAPI service for bounded discovery of websites that the operator owns or is authorized to assess.
 
-## 🛠️ Common Operations
+The repository does not provide an internet-wide movie-stream harvester. The discovery service follows only explicitly allowlisted hostnames, inventories links and media references, and does not fetch third-party embeds or proxy media payloads.
 
-### Start/Stop Services
-```bash
-# Start all services
-docker-compose up -d
-
-# Stop all services
-docker-compose down
+## Architecture
 
-# Stop and remove volumes (WARNING: data loss)
-docker-compose down -v
-```
+- **Web application:** Next.js 16, React 19, TypeScript, Tailwind CSS
+- **Database:** PostgreSQL with Drizzle ORM
+- **Playback:** Native browser playback and HLS.js
+- **Optional discovery service:** FastAPI + Python 3.12
+- **Authentication:** HttpOnly signed session cookie; AUTH_SECRET is required
 
-### View Logs
-```bash
-# Real-time backend logs
-docker-compose logs -f backend
-
-# Real-time scraper logs
-docker-compose logs -f scraper
-
-# View last 100 lines
-docker-compose logs backend --tail 100
-```
-
-### Database Access
-```bash
-# Open database shell
-docker-compose exec db psql -U user -d aggregator
-
-# Check table row counts
-docker-compose exec db psql -U user -d aggregator -c \
-  "SELECT 'movies' as table, COUNT(*) FROM movies;"
-
-# View recent movies
-docker-compose exec db psql -U user -d aggregator -c \
-  "SELECT title, rating, is_trending FROM movies LIMIT 10;"
-```
-
-### Scraper Management
-```bash
-# Run aggregation once (seed)
-docker-compose exec scraper python -m app.services.scrapers_cli --once
+## Local setup
 
-# Check aggregator status
-docker-compose exec scraper python -m app.services.scrapers_cli --status
+### Requirements
 
-# View recent aggregation logs
-docker-compose exec scraper python -m app.services.scrapers_cli --logs --hours 2
+- Node.js 22 or newer
+- PostgreSQL 16 or compatible
+- Python 3.12 only if you intend to run the discovery service
 
-# View real-time scraper logs
-docker-compose logs -f scraper
-```
+### 1. Configure the environment
 
-### API Testing
-```bash
-# Check health status
-curl http://localhost:8000/health | jq .
-
-# Get API status
-curl http://localhost:8000/api/status | jq .
-
-# Browse interactive API docs
-open http://localhost:8000/docs
-```
-
-### Redis Cache
-```bash
-# Access Redis CLI
-docker-compose exec redis redis-cli
-
-# Check memory usage
-docker-compose exec redis redis-cli INFO memory
-
-# Clear all cache
-docker-compose exec redis redis-cli FLUSHALL
+    cp .env.example .env
+    openssl rand -hex 32
 
-# View cache keys
-docker-compose exec redis redis-cli KEYS "*"
-```
-
----
-
-## 📊 Monitoring & Debugging
-
-### Service Health
-```bash
-# Check all services
-docker-compose ps
-
-# View resource usage
-docker stats
+Put the generated 64-character secret in AUTH_SECRET. Set DATABASE_URL to your PostgreSQL database. Do not commit .env or paste its secrets into issues or chat.
 
-# Check specific service logs with timestamps
-docker-compose logs backend --timestamps
-```
+### 2. Install and initialize
 
-### Database Health
-```bash
-# View aggregation run history
-docker-compose exec db psql -U user -d aggregator -c \
-  "SELECT id, started_at, status, titles_discovered FROM aggregation_runs ORDER BY started_at DESC LIMIT 10;"
+    npm install
+    npm run db:init
+    npm run dev
 
-# View provider uptime
-docker-compose exec db psql -U user -d aggregator -c \
-  "SELECT slug, name, status, uptime_percent, avg_latency_ms FROM providers;"
-
-# Count movies by trending
-docker-compose exec db psql -U user -d aggregator -c \
-  "SELECT is_trending, COUNT(*) FROM movies GROUP BY is_trending;"
-```
+Open http://localhost:3000.
 
-### Troubleshooting
-```bash
-# Check if ports are available
-lsof -i :3000
-lsof -i :8000
-lsof -i :5432
-
-# Test database connection
-docker-compose exec backend python -c \
-  "from app.database import engine; print('✓ Connected' if engine.connect() else '✗ Failed')"
-
-# Test Redis connection
-docker-compose exec backend python -c \
-  "from app.cache import test_redis_connection; test_redis_connection()"
-
-# Full reset (WARNING: loses data)
-docker-compose down -v && rm -rf volumes/ && docker-compose up -d
-```
-
----
-
-## 🔧 Configuration
-
-### Environment Variables (.env)
-```env
-# Database
-DATABASE_URL=postgresql://user:pass@db:5432/aggregator
+The database initializer creates the application tables. On first application access, the app seeds a small sample catalogue. Sample source records begin as **pending** and do not count as healthy until a server-side verification succeeds.
 
-# Redis
-REDIS_URL=redis://redis:6379
+### 3. Optional FastAPI discovery service
 
-# APIs
-TMDB_API_KEY=your_tmdb_api_key
+    cd backend
+    python3.12 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    export PYTHONPATH=.
+    uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
-# Services
-LOG_LEVEL=info
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### Docker Compose Override
-Create `docker-compose.override.yml` for local development:
-```yaml
-version: '3.8'
-services:
-  backend:
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
-```
-
----
+For local use, set BACKEND_API_URL=http://127.0.0.1:8000 in the Next.js environment. Set the same DISCOVERY_API_KEY in the web and backend environments, and configure DISCOVERY_ALLOWED_HOSTS with exact hostnames you are authorized to crawl. Set CORS_ALLOWED_ORIGINS to the exact web origin.
 
-## 📦 Deployment
+The crawler has bounded page/depth limits, HTTPS-only requests, exact hostname scope, DNS checks, redirect revalidation, response-size limits, timeouts, and sequential request pacing. It records third-party iframe hostnames but does not fetch those hosts.
 
-### Production Setup
-```bash
-# Use production compose file
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+## Production deployment
 
-# Check health
-curl https://api.example.com/health
-```
-
-### Scaling
-```bash
-# Run multiple scraper instances
-docker-compose up -d --scale scraper=3
-```
-
-### Backup & Restore
-```bash
-# Backup database
-docker-compose exec db pg_dump -U user aggregator > backup.sql
-
-# Restore database
-docker-compose exec -T db psql -U user aggregator < backup.sql
-```
-
----
-
-## 🐛 Common Issues
-
-### Port Already in Use
-```bash
-# Kill process using port 8000
-kill -9 $(lsof -t -i:8000)
-
-# Or use different port in docker-compose.override.yml
-```
-
-### Database Connection Error
-```bash
-# Wait for postgres to be ready (up to 30s)
-docker-compose exec db pg_isready -U user
-
-# Check database logs
-docker-compose logs db
-```
-
-### Scraper Not Running
-```bash
-# Check scraper logs
-docker-compose logs scraper
+Deploy the Next.js application to a host that supports Next.js 16 and Node.js 22+, and use a managed PostgreSQL database. The FastAPI discovery service is optional; the main catalogue, accounts, watchlists, and playback UI do not require it.
 
-# Run once manually
-docker-compose exec scraper python -m app.services.scrapers_cli --once
+### Required web environment
 
-# Check aggregation status
-docker-compose exec scraper python -m app.services.scrapers_cli --status
-```
-
-### Out of Memory
-```bash
-# Check memory limits
-docker stats
+| Variable | Purpose |
+|---|---|
+| DATABASE_URL | PostgreSQL connection string |
+| AUTH_SECRET | At least 32 random bytes; generate with openssl rand -hex 32 |
+| STREAM_PROBE_ALLOWED_HOSTS | Comma-separated exact HTTPS hostnames permitted for server-side source checks |
 
-# Adjust in docker-compose.yml
-# deploy:
-#   resources:
-#     limits:
-#       memory: 2G
-```
-
----
-
-## 📚 API Documentation
-
-### Available Endpoints
-
-**Health & Status**
-- `GET /health` - Health check
-- `GET /api/status` - API status
-
-**Movies**
-- `GET /api/movies` - List movies (paginated)
-- `GET /api/movies/{id}` - Get movie details
-- `POST /api/movies` - Create movie
-- `PUT /api/movies/{id}` - Update movie
-
-**Streaming**
-- `GET /api/movies/{id}/sources` - List stream sources
-- `GET /api/providers` - List providers
-
-**Watchlist**
-- `POST /api/watchlist` - Add to watchlist
-- `GET /api/watchlist` - Get user watchlist
-- `DELETE /api/watchlist/{id}` - Remove from watchlist
-
-See http://localhost:8000/docs for interactive API documentation.
-
----
-
-## 📝 Project Structure
-
-```
-.
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI app
-│   │   ├── database.py          # DB config
-│   │   ├── cache.py             # Redis client
-│   │   ├── db_models.py         # SQLAlchemy models
-│   │   ├── schemas.py           # Pydantic schemas
-│   │   └── services/
-│   │       ├── aggregator.py    # Scraper logic
-│   │       └── scrapers_cli.py  # CLI commands
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-├── setup.sh                      # Setup script
-├── OPERATIONS.md                 # Operations guide
-└── README.md                     # This file
-```
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Test locally with `docker-compose`
-4. Submit a pull request
-
----
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
----
-
-## 🆘 Support
-
-- **Issues**: Create GitHub issue
-- **Docs**: See `OPERATIONS.md` for detailed commands
-- **API Docs**: http://localhost:8000/docs
-- **Email**: support@cinestream.example.com
-
----
-
-## 🚀 Next Steps
-
-1. ✅ Run `./setup.sh` - Initialize all services
-2. ✅ Check `http://localhost:3000` - View frontend
-3. ✅ Check `http://localhost:8000/docs` - API documentation
-4. ✅ Run aggregation - `docker-compose exec scraper python -m app.services.scrapers_cli --once`
-5. ✅ Monitor status - `docker-compose exec scraper python -m app.services.scrapers_cli --status`
-6. ✅ View logs - `docker-compose logs -f scraper`
-7. ✅ Customize `TMDB_API_KEY` in `.env` for enriched metadata
-
----
-
-**Last Updated**: 2024
-**Version**: 2.0.0
+### Optional discovery environment
+
+| Variable | Purpose |
+|---|---|
+| BACKEND_API_URL | Private/internal URL of the FastAPI service |
+| DISCOVERY_API_KEY | Shared secret between Next.js and FastAPI |
+| DISCOVERY_ALLOWED_HOSTS | Exact hostnames authorized for recursive discovery |
+| DISCOVERY_ADMIN_EMAILS | Comma-separated admin email allowlist |
+| CORS_ALLOWED_ORIGINS | Exact web origin(s) allowed by FastAPI |
+| NEXT_PUBLIC_API_URL | Optional backend URL for integrations that need a browser-visible URL |
+
+### Launch sequence
+
+1. Provision PostgreSQL and set DATABASE_URL.
+2. Configure a unique AUTH_SECRET; never use a shared or example secret.
+3. Deploy the Next.js application.
+4. Run npm run db:init once against the production database from a trusted environment.
+5. Open /api/health; it should return HTTP 200 with both database and auth-secret checks passing.
+6. Register your own account. Promote it to administrator using a trusted database console:
+
+       UPDATE users SET role = 'admin' WHERE email = 'your-admin-email@example.com';
+
+7. If authorized discovery is required, deploy the FastAPI service privately, configure its shared key and host allowlist, add the same administrator email to DISCOVERY_ADMIN_EMAILS, and set the exact frontend origin in CORS_ALLOWED_ORIGINS.
+8. Add only source hostnames you are authorized to use to STREAM_PROBE_ALLOWED_HOSTS. Administrators can use **Verify Source** on the watch page to run a bounded server-side content-signature check.
+
+Demo accounts are disabled by default in production. Keep ENABLE_DEMO_ACCOUNT=false and NEXT_PUBLIC_ENABLE_DEMO_LOGIN=false for a public deployment. Do not enable the public demo credentials on a production site unless you deliberately accept the access they provide.
+
+## Verification
+
+Run these before deployment:
+
+    npm run typecheck
+    npm run build
+    PYTHONPATH=backend python -m unittest discover -s backend/tests -v
+
+The GitHub Actions workflow runs the TypeScript check, production build, and Python crawler tests on pull requests and pushes to the configured branches.
+
+## Security model and operational limits
+
+- Source registration and server-side media probes require an authenticated administrator.
+- Discovery requires an authenticated administrator whose email is also explicitly allowlisted.
+- Sign-in, registration, source registration, health probes, and discovery have application-level rate limits. The in-memory limiter is per process; configure distributed rate limits at your hosting edge/WAF for production.
+- Outbound media probes require HTTPS, an exact hostname allowlist, public DNS resolution, redirect revalidation, a short timeout, and a bounded byte read.
+- DNS validation followed by a separate HTTP connection still has a DNS-rebinding race. Production must enforce outbound network egress rules so application traffic cannot reach loopback, private, link-local, metadata, or other non-public networks.
+- A media signature check identifies a container or manifest type. It does not prove the media's identity, completeness, safety, licensing, or distribution rights.
+- Browser playback success is not treated as server-side source verification.
+- The optional crawler inventories media references; it does not download media, crawl third-party embeds, or automatically add results to the playback catalogue.
+
+## Useful endpoints
+
+- GET /api/health — web application readiness (database and auth-secret configuration)
+- GET /api/movies — catalogue
+- GET /api/movies/{id} — title and configured sources
+- GET /api/aggregator — provider and source telemetry
+- GET /health — FastAPI liveness
+- GET /docs — FastAPI interactive API documentation (when the optional backend is running)
+
+## Docker
+
+The repository also includes Docker-oriented files for operators who prefer containerized infrastructure. Docker is not required for local development or for the Next.js deployment described above.

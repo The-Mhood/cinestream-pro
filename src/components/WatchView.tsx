@@ -47,17 +47,15 @@ export default function WatchView({
     const filtered = sources.filter(
       (s) => s.season === selectedSeason && s.episode === selectedEpisode
     );
-    return filtered.length > 0 ? filtered : sources;
+    return filtered;
   }, [sources, media.type, selectedSeason, selectedEpisode]);
 
   const defaultSource = useMemo(() => {
     if (initialServerId) {
       const match = episodeSources.find((s) => s.id === initialServerId);
-      if (match && match.status === "active") return match;
+      if (match && match.status === "active" && match.isActive) return match;
     }
-    return (
-      episodeSources.find((s) => s.status === "active") ?? episodeSources[0]
-    );
+    return episodeSources.find((s) => s.status === "active" && s.isActive);
   }, [episodeSources, initialServerId]);
 
   const [activeSourceId, setActiveSourceId] = useState<number>(
@@ -79,9 +77,8 @@ export default function WatchView({
 
   const activeSource = useMemo(() => {
     return (
-      episodeSources.find((s) => s.id === activeSourceId) ??
-      episodeSources[0] ??
-      sources[0]
+      episodeSources.find((s) => s.id === activeSourceId && s.status === "active" && s.isActive) ??
+      episodeSources.find((s) => s.status === "active" && s.isActive)
     );
   }, [episodeSources, activeSourceId, sources]);
 
@@ -99,6 +96,7 @@ export default function WatchView({
   }, [sources, selectedSeason, media.type]);
 
   const handleSelectServer = (src: StreamSourceItem) => {
+    if (src.status !== "active" || !src.isActive) return;
     setFailoverNotice(null);
     setActiveSourceId(src.id);
     setAutoPlay(true);
@@ -115,18 +113,9 @@ export default function WatchView({
         )
       );
 
-      fetch("/api/stream/health", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceId: failedSource.id,
-          event: "playback_error",
-        }),
-      }).catch(() => {});
-
       // Find next healthy fallback server
       const fallback = episodeSources.find(
-        (s) => s.id !== failedSource.id && s.status === "active"
+        (s) => s.id !== failedSource.id && s.status === "active" && s.isActive
       );
 
       if (fallback) {
@@ -143,17 +132,6 @@ export default function WatchView({
     },
     [episodeSources]
   );
-
-  const handleServerHealthy = useCallback((healthySource: StreamSourceItem) => {
-    fetch("/api/stream/health", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceId: healthySource.id,
-        event: "playback_ok",
-      }),
-    }).catch(() => {});
-  }, []);
 
   const handleProgressUpdate = useCallback(
     (seconds: number) => {
@@ -282,12 +260,11 @@ export default function WatchView({
           autoPlay={autoPlay}
           failoverNotice={failoverNotice}
           onServerError={handleServerError}
-          onServerHealthy={handleServerHealthy}
           onProgressUpdate={handleProgressUpdate}
         />
       ) : (
         <div className="flex aspect-video items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-sm text-slate-400">
-          No streaming sources available for this selection.
+          No server-verified sources are available for this selection. An administrator must verify an approved source before playback.
         </div>
       )}
 
@@ -373,18 +350,20 @@ export default function WatchView({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAddSource((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-white"
-          >
-            <Plus className="h-3.5 w-3.5 text-amber-400" />
-            Add Mirror URL
-          </button>
+          {user?.role === "admin" && (
+            <button
+              type="button"
+              onClick={() => setShowAddSource((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-white"
+            >
+              <Plus className="h-3.5 w-3.5 text-amber-400" />
+              Add Mirror URL
+            </button>
+          )}
         </div>
 
         {/* Optional Add Custom Mirror Drawer */}
-        {showAddSource && (
+        {user?.role === "admin" && showAddSource && (
           <form
             onSubmit={handleAddCustomSource}
             className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-slate-700/80 bg-slate-900/90 p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -438,7 +417,7 @@ export default function WatchView({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {episodeSources.map((src) => {
             const isSelected = activeSource?.id === src.id;
-            const isHealthy = src.status === "active";
+            const isHealthy = src.status === "active" && src.isActive;
 
             return (
               <div
@@ -454,7 +433,8 @@ export default function WatchView({
                 <button
                   type="button"
                   onClick={() => handleSelectServer(src)}
-                  className="flex w-full items-start justify-between gap-2 text-left"
+                  disabled={!isHealthy}
+                  className="flex w-full items-start justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <div>
                     <div className="flex items-center gap-2">
@@ -491,27 +471,31 @@ export default function WatchView({
                 <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-[11px]">
                   <span
                     className={`font-medium ${
-                      isHealthy ? "text-emerald-400" : "text-red-400"
+                      isHealthy ? "text-emerald-400" : src.status === "pending" ? "text-amber-300" : "text-red-400"
                     }`}
                   >
                     {isHealthy
-                      ? `Online • ${src.latencyMs}ms`
-                      : "Offline (Click to test failover)"}
+                      ? `Server-verified • ${src.latencyMs}ms`
+                      : src.status === "pending"
+                        ? "Awaiting server verification"
+                        : "Offline"}
                   </span>
 
-                  <button
-                    type="button"
-                    onClick={() => handleProbeHealth(src.id)}
-                    disabled={probingId === src.id}
-                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:opacity-50"
-                  >
-                    <Activity
-                      className={`h-3 w-3 ${
-                        probingId === src.id ? "animate-pulse text-amber-400" : ""
-                      }`}
-                    />
-                    {probingId === src.id ? "Pinging..." : "Test Ping"}
-                  </button>
+                  {user?.role === "admin" && (
+                    <button
+                      type="button"
+                      onClick={() => handleProbeHealth(src.id)}
+                      disabled={probingId === src.id}
+                      className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:opacity-50"
+                    >
+                      <Activity
+                        className={`h-3 w-3 ${
+                          probingId === src.id ? "animate-pulse text-amber-400" : ""
+                        }`}
+                      />
+                      {probingId === src.id ? "Verifying..." : "Verify Source"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -591,10 +575,12 @@ export default function WatchView({
                 </span>
               </div>
               <div>
-                <span className="block text-slate-500">Aggregation Node</span>
-                <span className="mt-1 inline-flex items-center gap-1 font-semibold text-emerald-300">
+                <span className="block text-slate-500">Source verification</span>
+                <span className="mt-1 inline-flex items-center gap-1 font-semibold text-slate-200">
                   <ShieldAlert className="h-3.5 w-3.5" />
-                  Ad-Free Verified Streams
+                  {sources.some((source) => source.status === "active" && source.isActive)
+                    ? "Server-verified sources available"
+                    : "No server-verified sources yet"}
                 </span>
               </div>
             </div>

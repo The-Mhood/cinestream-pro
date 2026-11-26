@@ -27,8 +27,8 @@ export interface CatalogItem {
 }
 
 export default function MovieCard({ item }: { item: CatalogItem }) {
-  const activeCount = item.activeSourceCount ?? item.sourceCount ?? 3;
-  const maxQuality = item.maxQuality ?? "1080p";
+  const activeCount = item.activeSourceCount ?? 0;
+  const maxQuality = item.maxQuality ?? "Unverified";
 
   return (
     <Link
@@ -57,7 +57,7 @@ export default function MovieCard({ item }: { item: CatalogItem }) {
           </span>
           <span className="flex items-center gap-1 rounded-md border border-emerald-500/30 bg-slate-950/85 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur-md">
             <Server className="h-3 w-3" />
-            {activeCount} {activeCount === 1 ? "Server" : "Servers"}
+            {activeCount > 0 ? `${activeCount} ${activeCount === 1 ? "Server" : "Servers"}` : "No verified servers"}
           </span>
         </div>
 
@@ -65,10 +65,10 @@ export default function MovieCard({ item }: { item: CatalogItem }) {
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/60 opacity-0 backdrop-blur-[2px] transition duration-300 group-hover:opacity-100">
           <span className="flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-amber-400/30 transition group-hover:scale-105">
             <Play className="h-4 w-4 fill-slate-950" />
-            Watch Now
+            {activeCount > 0 ? "Watch Now" : "View Title"}
           </span>
           <span className="mt-2.5 text-[11px] font-medium text-slate-200">
-            {item.discoveredVia}
+            {activeCount > 0 ? `${activeCount} verified source${activeCount === 1 ? "" : "s"}` : "Sources awaiting verification"}
           </span>
         </div>
 

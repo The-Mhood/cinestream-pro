@@ -260,7 +260,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={mode === "register" ? 12 : 1}
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -278,23 +279,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               </button>
             </form>
 
-            <div className="my-4 flex items-center gap-3">
-              <div className="h-px flex-1 bg-slate-800" />
-              <span className="text-[11px] uppercase tracking-wider text-slate-500">
-                Quick Access
-              </span>
-              <div className="h-px flex-1 bg-slate-800" />
-            </div>
+            {process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true" && (
+              <>
+                <div className="my-4 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-slate-800" />
+                  <span className="text-[11px] uppercase tracking-wider text-slate-500">
+                    Quick Access
+                  </span>
+                  <div className="h-px flex-1 bg-slate-800" />
+                </div>
 
-            <button
-              type="button"
-              onClick={loginDemo}
-              disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 py-2.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-60"
-            >
-              <Sparkles className="h-4 w-4" />
-              One-Click Demo Account (demo@cinestream.pro)
-            </button>
+                <button
+                  type="button"
+                  onClick={loginDemo}
+                  disabled={submitting}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 py-2.5 text-xs font-semibold text-amber-300 transition hover:bg-amber-400/20 disabled:opacity-60"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  One-Click Demo Account (demo@cinestream.pro)
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -38,7 +38,6 @@ interface VideoPlayerProps {
   autoPlay?: boolean;
   failoverNotice?: string | null;
   onServerError: (failedSource: StreamSourceItem) => void;
-  onServerHealthy?: (source: StreamSourceItem) => void;
   onProgressUpdate?: (seconds: number) => void;
 }
 
@@ -55,12 +54,10 @@ export default function VideoPlayer({
   autoPlay = false,
   failoverNotice,
   onServerError,
-  onServerHealthy,
   onProgressUpdate,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const hasReportedHealthyRef = useRef(false);
   const lastSavedProgressRef = useRef(0);
   const initialSeekAppliedRef = useRef(false);
 
@@ -78,7 +75,6 @@ export default function VideoPlayer({
     setLoadingStream(true);
     setHlsLevels([]);
     setSelectedLevel(-1);
-    hasReportedHealthyRef.current = false;
     initialSeekAppliedRef.current = false;
     setStreamStatusText(`Connecting to ${source.providerName}...`);
 
@@ -132,10 +128,6 @@ export default function VideoPlayer({
         if (autoPlay) {
           video.play().catch(() => {});
         }
-        if (!hasReportedHealthyRef.current) {
-          hasReportedHealthyRef.current = true;
-          onServerHealthy?.(source);
-        }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -164,10 +156,6 @@ export default function VideoPlayer({
         if (autoPlay) {
           video.play().catch(() => {});
         }
-        if (!hasReportedHealthyRef.current) {
-          hasReportedHealthyRef.current = true;
-          onServerHealthy?.(source);
-        }
       };
       const handleError = () => {
         setLoadingStream(false);
@@ -182,7 +170,7 @@ export default function VideoPlayer({
         video.removeEventListener("error", handleError);
       };
     }
-  }, [source, autoPlay, initialTime, onServerError, onServerHealthy]);
+  }, [source, autoPlay, initialTime, onServerError]);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -246,7 +234,7 @@ export default function VideoPlayer({
         {/* Top-left Active Source HUD */}
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-950/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className={`h-2 w-2 rounded-full ${source.status === "active" && source.isActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
             {source.serverLabel}
           </span>
           <span className="rounded-lg border border-amber-400/30 bg-amber-400/15 px-2 py-1 text-[11px] font-bold text-amber-300 backdrop-blur-md">
@@ -267,7 +255,7 @@ export default function VideoPlayer({
         {/* Simulated Subtitles Overlay when toggled */}
         {captionsOn && !loadingStream && (
           <div className="pointer-events-none absolute bottom-14 left-1/2 -translate-x-1/2 rounded-lg bg-black/80 px-3.5 py-1.5 text-center text-xs font-medium text-white shadow">
-            [CC • {source.language}] {title} — Adaptive Audio Track Active
+            Caption preview for {source.language} — no subtitle track is loaded
           </div>
         )}
       </div>
@@ -281,7 +269,7 @@ export default function VideoPlayer({
           </span>
           <span className="hidden text-slate-600 sm:inline">•</span>
           <span className="hidden text-slate-400 sm:inline">
-            Latency {source.latencyMs}ms
+            {source.latencyMs > 0 ? `Server probe ${source.latencyMs}ms` : "Not server-verified"}
           </span>
         </div>
 

@@ -26,13 +26,14 @@ export async function GET() {
       db.select().from(streamSources),
     ]);
 
-    const activeSources = allSources.filter((s) => s.status === "active").length;
-    const offlineSources = allSources.filter((s) => s.status !== "active").length;
+    const activeSources = allSources.filter((s) => s.status === "active" && s.isActive).length;
+    const offlineSources = allSources.filter((s) => s.status === "offline" || s.status === "degraded").length;
+    const pendingSources = allSources.filter((s) => s.status === "pending" || s.status === "unverified").length;
     const avgLatency =
       activeSources > 0
         ? Math.round(
             allSources
-              .filter((s) => s.status === "active")
+              .filter((s) => s.status === "active" && s.isActive)
               .reduce((acc, s) => acc + s.latencyMs, 0) / activeSources
           )
         : 0;
@@ -46,6 +47,7 @@ export async function GET() {
         totalSources: allSources.length,
         activeSources,
         offlineSources,
+        pendingSources,
         avgLatencyMs: avgLatency,
       },
     });

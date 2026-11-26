@@ -16,9 +16,9 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "CineStream Pro — Multi-Source Streaming Aggregator",
+  title: "CineStream Pro — Media Catalogue & Multi-Source Player",
   description:
-    "Ad-free, high-performance multi-provider streaming aggregator with adaptive HLS playback, live health telemetry, and automatic server failover.",
+    "A curated media catalogue with multi-source playback, account libraries, and server-side source verification.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -39,8 +39,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </span>
               </div>
               <p className="text-center text-xs text-slate-500">
-                One Interface. Infinite Sources. Ad-free adaptive HLS streaming
-                with real-time mirror failover &amp; open-cinema catalog.
+                A curated catalogue, operator-managed sources, and transparent
+                server-side verification.
               </p>
               <div className="flex items-center gap-4 text-xs text-slate-400">
                 <span>PostgreSQL + Drizzle</span>

@@ -5,8 +5,7 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 const SESSION_COOKIE = "cinestream_session";
-const SECRET =
-  process.env.AUTH_SECRET || "cinestream-pro-aggregator-secret-key-2026";
+const SECRET = process.env.AUTH_SECRET || "";
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -32,6 +31,9 @@ export interface SessionPayload {
 }
 
 export function signSessionToken(payload: Omit<SessionPayload, "exp">): string {
+  if (!SECRET) {
+    throw new Error("AUTH_SECRET must be configured before issuing sessions");
+  }
   const fullPayload: SessionPayload = {
     ...payload,
     exp: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
@@ -45,6 +47,7 @@ export function signSessionToken(payload: Omit<SessionPayload, "exp">): string {
 }
 
 export function verifySessionToken(token: string): SessionPayload | null {
+  if (!SECRET) return null;
   try {
     const [data, sig] = token.split(".");
     if (!data || !sig) return null;

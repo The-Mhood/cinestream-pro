@@ -153,11 +153,11 @@ export default function CatalogExplorer({
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-400/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-amber-300 backdrop-blur-md">
                     <Sparkles className="h-3 w-3" />
-                    Featured Multi-Source Stream
+                    Featured title
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-3 py-1 text-[11px] font-semibold text-emerald-300 backdrop-blur-md">
                     <Server className="h-3 w-3" />
-                    {heroItem.activeSourceCount ?? 3} Active Mirrors
+                    {heroItem.activeSourceCount ?? 0} Active Mirrors
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-900/80 px-2.5 py-1 text-[11px] font-bold text-amber-400">
                     <Star className="h-3 w-3 fill-amber-400" />
@@ -179,7 +179,7 @@ export default function CatalogExplorer({
                   <span>{heroItem.genres}</span>
                   <span>•</span>
                   <span className="font-semibold text-amber-400">
-                    {heroItem.maxQuality ?? "4K"} Adaptive HLS
+                    {heroItem.maxQuality && heroItem.maxQuality !== "Unverified" ? `${heroItem.maxQuality} verified` : "Sources unverified"}
                   </span>
                 </div>
 
@@ -189,7 +189,7 @@ export default function CatalogExplorer({
                     className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-300"
                   >
                     <Play className="h-4 w-4 fill-slate-950" />
-                    Play Server 1
+                    {heroItem.activeSourceCount && heroItem.activeSourceCount > 0 ? "Play verified source" : "View title"}
                   </Link>
                   <button
                     type="button"
@@ -236,11 +236,11 @@ export default function CatalogExplorer({
               <div className="flex items-center gap-2.5">
                 <div className="h-5 w-1 rounded-full bg-amber-400" />
                 <h2 className="font-display text-xl font-bold text-white">
-                  Trending Across Providers
+                  Featured titles
                 </h2>
               </div>
               <span className="text-xs font-medium text-slate-400">
-                Verified on 2+ mirrors
+                Featured catalogue selections
               </span>
             </div>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
