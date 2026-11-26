@@ -253,7 +253,7 @@ export default function AggregatorPage() {
                 </span>
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Configured HLS &amp; MP4 sources
+                Configured media source records
               </p>
             </div>
 
