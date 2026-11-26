@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { desc } from "drizzle-orm";
 import { db } from "@/db";
 import { mediaItems, streamSources } from "@/db/schema";
@@ -52,5 +53,15 @@ export default async function HomePage() {
     };
   });
 
-  return <CatalogExplorer initialItems={initialItems} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-7xl px-4 py-16 text-sm text-slate-400">
+          Loading catalogue...
+        </div>
+      }
+    >
+      <CatalogExplorer initialItems={initialItems} />
+    </Suspense>
+  );
 }
