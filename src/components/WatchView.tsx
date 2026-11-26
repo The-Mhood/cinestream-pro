@@ -600,7 +600,15 @@ export default function WatchView({
                 )}
                 {media.sourceIdentifier && (
                   <p className="mt-1 text-slate-500">
-                    Internet Archive item: {media.sourceIdentifier}
+                    Source:{" "}
+                    <a
+                      href={`https://archive.org/details/${encodeURIComponent(media.sourceIdentifier)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-slate-400 underline underline-offset-2 hover:text-white"
+                    >
+                      Internet Archive item {media.sourceIdentifier}
+                    </a>
                   </p>
                 )}
               </div>
