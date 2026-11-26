@@ -53,7 +53,7 @@ export default function WatchView({
   const defaultSource = useMemo(() => {
     if (initialServerId) {
       const match = episodeSources.find((s) => s.id === initialServerId);
-      if (match && match.status === "active") return match;
+      if (match && match.status === "active" && match.isActive) return match;
     }
     return episodeSources.find((s) => s.status === "active" && s.isActive);
   }, [episodeSources, initialServerId]);
@@ -417,7 +417,7 @@ export default function WatchView({
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {episodeSources.map((src) => {
             const isSelected = activeSource?.id === src.id;
-            const isHealthy = src.status === "active";
+            const isHealthy = src.status === "active" && src.isActive;
 
             return (
               <div
