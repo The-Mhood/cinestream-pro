@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/components/AuthContext";
 import Link from "next/link";
 import {
   Activity,
@@ -39,6 +40,22 @@ interface AggregationRunRow {
   summary: string;
 }
 
+interface DiscoveryPageResult {
+  url: string;
+  title: string;
+  depth: number;
+  internal_links: string[];
+  media_references: string[];
+  external_embed_hosts: string[];
+}
+
+interface DiscoveryReport {
+  pages_crawled: number;
+  skipped: number;
+  errors: string[];
+  pages: DiscoveryPageResult[];
+}
+
 interface AggregatorData {
   providers: ProviderRow[];
   runs: AggregationRunRow[];
@@ -52,7 +69,12 @@ interface AggregatorData {
 }
 
 export default function AggregatorPage() {
+  const { user } = useAuth();
   const [data, setData] = useState<AggregatorData | null>(null);
+  const [crawlStartUrl, setCrawlStartUrl] = useState("");
+  const [crawlReport, setCrawlReport] = useState<DiscoveryReport | null>(null);
+  const [crawlError, setCrawlError] = useState<string | null>(null);
+  const [crawling, setCrawling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncMessage, setLastSyncMessage] = useState<string | null>(null);
@@ -85,6 +107,31 @@ export default function AggregatorPage() {
       }
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleAuthorizedCrawl = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCrawling(true);
+    setCrawlError(null);
+    setCrawlReport(null);
+    try {
+      const response = await fetch("/api/discovery/crawl", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start_urls: [crawlStartUrl.trim()],
+          max_pages: 50,
+          max_depth: 2,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Authorized discovery failed");
+      setCrawlReport(result as DiscoveryReport);
+    } catch (error) {
+      setCrawlError(error instanceof Error ? error.message : "Authorized discovery failed");
+    } finally {
+      setCrawling(false);
     }
   };
 
@@ -143,6 +190,75 @@ export default function AggregatorPage() {
             Browse Updated Catalog →
           </Link>
         </div>
+      )}
+
+      {user?.role === "admin" && (
+        <section className="mb-8 rounded-2xl border border-sky-500/25 bg-[#0c1628] p-6">
+          <div className="mb-4">
+            <h2 className="font-display text-lg font-bold text-white">Authorized Site Discovery</h2>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              Crawl domains in the backend allowlist. Inventory page links, in-scope
+              HLS/DASH/MP4/WebM references and third-party embed hostnames. External
+              embeds are not fetched.
+            </p>
+          </div>
+          <form onSubmit={handleAuthorizedCrawl} className="flex flex-col gap-3 sm:flex-row">
+            <input
+              type="url"
+              required
+              value={crawlStartUrl}
+              onChange={(event) => setCrawlStartUrl(event.target.value)}
+              placeholder="https://your-authorized-domain.example/"
+              className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400"
+            />
+            <button
+              type="submit"
+              disabled={crawling}
+              className="rounded-xl bg-sky-400 px-5 py-3 text-xs font-bold text-slate-950 disabled:opacity-60"
+            >
+              {crawling ? "Crawling..." : "Start authorized crawl (50 pages)"}
+            </button>
+          </form>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Admin only. Scope is enforced by DISCOVERY_ALLOWED_HOSTS. Maximum depth: 2.
+          </p>
+          {crawlError && (
+            <p className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+              {crawlError}
+            </p>
+          )}
+          {crawlReport && (
+            <div className="mt-5 space-y-3">
+              <div className="flex flex-wrap gap-4 text-xs text-slate-300">
+                <span><strong className="text-white">{crawlReport.pages_crawled}</strong> pages</span>
+                <span><strong className="text-sky-300">{crawlReport.pages.reduce((n, p) => n + p.media_references.length, 0)}</strong> media references</span>
+                <span><strong className="text-amber-300">{new Set(crawlReport.pages.flatMap((p) => p.external_embed_hosts)).size}</strong> external embed hosts</span>
+                <span><strong className="text-white">{crawlReport.skipped}</strong> skipped</span>
+              </div>
+              {crawlReport.errors.map((error, index) => (
+                <p key={index} className="text-[11px] text-amber-200">{error}</p>
+              ))}
+              {crawlReport.pages.map((page) => (
+                <article key={page.url} className="rounded-xl border border-slate-800 bg-slate-950/60 p-4">
+                  <p className="text-sm font-semibold text-white">{page.title || "Untitled page"}</p>
+                  <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-[11px] text-sky-300 hover:underline">
+                    {page.url}
+                  </a>
+                  {page.media_references.map((mediaUrl) => (
+                    <a key={mediaUrl} href={mediaUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-[11px] text-emerald-300 hover:underline">
+                      {mediaUrl}
+                    </a>
+                  ))}
+                  {page.external_embed_hosts.length > 0 && (
+                    <p className="mt-2 break-all text-[11px] text-amber-200/80">
+                      External embed hosts (not fetched): {page.external_embed_hosts.join(", ")}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {/* KPI Grid */}
