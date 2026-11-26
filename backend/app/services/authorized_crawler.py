@@ -15,6 +15,7 @@ import os
 import socket
 import time
 from collections import deque
+from functools import lru_cache
 from dataclasses import asdict, dataclass, field
 from typing import Iterable
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
@@ -64,6 +65,7 @@ def _host_allowlist(values: Iterable[str]) -> set[str]:
     return {value.strip().lower().rstrip(".") for value in values if value.strip()}
 
 
+@lru_cache(maxsize=256)
 def _is_public_hostname(hostname: str) -> bool:
     """Reject IP literals and hostnames resolving to any non-global address."""
     try:
