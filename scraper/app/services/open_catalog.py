@@ -314,6 +314,31 @@ class InternetArchiveOpenCatalog:
                 break
             page += 1
 
+        # Refresh the provider's indexed-source count and record this run.
+        self.db.execute("""
+            UPDATE providers
+            SET total_streams_indexed = (
+                SELECT COUNT(*) FROM stream_sources
+                WHERE provider_id = providers.id
+            ),
+            last_checked_at = NOW(),
+            status = 'active'
+            WHERE slug = 'internet-archive'
+        """)
+        self.db.execute("""
+            INSERT INTO aggregation_runs
+              (providers_scanned, titles_discovered, sources_verified, status, summary)
+            VALUES
+              (1, %s,
+               (SELECT COUNT(*) FROM stream_sources ss
+                JOIN providers p ON p.id = ss.provider_id
+                WHERE p.slug = 'internet-archive'),
+               'completed', %s)
+        """, (
+            imported,
+            f"Internet Archive open catalogue: imported {imported} licensed films; examined {examined}; skipped {rejected_or_unplayable}.",
+        ))
+
         return {
             "imported": imported,
             "examined": examined,
