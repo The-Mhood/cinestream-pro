@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { mediaItems } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
@@ -24,8 +24,6 @@ type TmdbListItem = {
 type TmdbList = { results?: TmdbListItem[]; total_pages?: number };
 
 const TMDB_IMAGE = "https://image.tmdb.org/t/p";
-const PAGE_SIZE = 20;
-
 async function tmdb<T>(path: string, apiKey: string, params: Record<string, string> = {}): Promise<T> {
   const url = new URL(`https://api.themoviedb.org/3${path}`);
   url.searchParams.set("api_key", apiKey);
@@ -80,15 +78,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const [movieGenres, tvGenres, ...feeds] = await Promise.all([
+    const [movieGenres, tvGenres, movieFeed, tvFeed, trendingMovies, trendingTv, onTheAir] = await Promise.all([
       tmdb<{ genres?: { id: number; name: string }[] }>("/genre/movie/list", apiKey),
       tmdb<{ genres?: { id: number; name: string }[] }>("/genre/tv/list", apiKey),
-      ...Array.from({ length: pages }, (_, i) => tmdb<TmdbList>("/discover/movie", apiKey, {
+      Promise.all(Array.from({ length: pages }, (_, i) => tmdb<TmdbList>("/discover/movie", apiKey, {
         page: String(i + 1), include_adult: "false", watch_region: "US", sort_by: "popularity.desc",
-      })),
-      ...Array.from({ length: pages }, (_, i) => tmdb<TmdbList>("/discover/tv", apiKey, {
+      }))),
+      Promise.all(Array.from({ length: pages }, (_, i) => tmdb<TmdbList>("/discover/tv", apiKey, {
         page: String(i + 1), include_adult: "false", watch_region: "US", sort_by: "popularity.desc",
-      })),
+      }))),
       tmdb<TmdbList>("/trending/movie/day", apiKey),
       tmdb<TmdbList>("/trending/tv/day", apiKey),
       tmdb<TmdbList>("/tv/on_the_air", apiKey, { page: "1" }),
@@ -96,11 +94,7 @@ export async function POST(request: NextRequest) {
 
     const movieGenreMap = new Map((movieGenres.genres ?? []).map((g) => [g.id, g.name]));
     const tvGenreMap = new Map((tvGenres.genres ?? []).map((g) => [g.id, g.name]));
-    const movieFeed = feeds.slice(0, pages);
-    const tvFeed = feeds.slice(pages, pages * 2);
-    const trendingMovies = feeds[pages * 2];
-    const trendingTv = feeds[pages * 2 + 1];
-    const onTheAir = feeds[pages * 2 + 2];
+
 
     const records = new Map<string, { item: TmdbListItem; type: "movie" | "series"; trending: boolean }>();
     const add = (list: TmdbList | undefined, type: "movie" | "series", trending: boolean) => {
@@ -159,9 +153,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Remove only the known synthetic demo catalogue after a successful real import.
-    await db.delete(mediaItems).where(eq(mediaItems.discoveredVia, "Sample catalogue"));
+    if (records.size > 0) {
+      await db.delete(mediaItems).where(eq(mediaItems.discoveredVia, "Sample catalogue"));
+    }
 
-    const [total] = await db.select({ count: mediaItems.id }).from(mediaItems).orderBy(desc(mediaItems.id)).limit(1);
     return NextResponse.json({
       ok: true,
       source: "Cinejoy's observed TMDB catalogue feeds",
