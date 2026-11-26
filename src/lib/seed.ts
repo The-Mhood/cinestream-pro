@@ -79,6 +79,10 @@ async function runSeed() {
       ]));
 
     await db
+      .update(mediaItems)
+      .set({ discoveredVia: "Sample catalogue" });
+
+    await db
       .delete(aggregationRuns)
       .where(eq(aggregationRuns.summary, legacySeedSummary));
   }
