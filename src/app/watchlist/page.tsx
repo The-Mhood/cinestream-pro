@@ -170,7 +170,7 @@ export default function WatchlistPage() {
                           Resume Stream
                         </span>
                         <span className="text-[11px] text-slate-500">
-                          {entry.media.activeSourceCount ?? 0} Servers
+                          {(entry.media.activeSourceCount ?? 0) > 0 ? `${entry.media.activeSourceCount} verified servers` : "No verified servers"}
                         </span>
                       </div>
                     </div>
