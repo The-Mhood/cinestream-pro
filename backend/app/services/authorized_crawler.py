@@ -233,7 +233,14 @@ class AuthorizedSiteCrawler:
                 normalized = normalize_scoped_url(candidate, self.allowed_hosts)
             except ScopeViolation:
                 continue
-            if urlsplit(normalized).path.lower().endswith(MEDIA_EXTENSIONS):
+            media_type = (tag.get("type") or "").lower()
+            media_path = urlsplit(normalized).path.lower()
+            if (
+                media_path.endswith(MEDIA_EXTENSIONS)
+                or "mpegurl" in media_type
+                or "dash+xml" in media_type
+                or media_type.startswith("video/")
+            ):
                 media_references.add(normalized)
 
         for frame in soup.find_all("iframe", src=True):
