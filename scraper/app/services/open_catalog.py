@@ -104,6 +104,14 @@ class InternetArchiveOpenCatalog:
                'https://archive.org', 'active', 0, 100.0, 0)
             ON CONFLICT (slug) DO UPDATE
               SET name = EXCLUDED.name, base_url = EXCLUDED.base_url;
+            UPDATE stream_sources
+              SET status = 'offline', is_active = FALSE
+              WHERE url LIKE '%example.com%'
+                 OR url LIKE '%offline-mirror.invalid%'
+                 OR url LIKE '%stream.example.com%';
+            UPDATE providers
+              SET status = 'offline'
+              WHERE base_url LIKE '%example.com%';
         """)
 
     def search(self, page: int, rows: int) -> tuple[list[dict[str, Any]], int]:
@@ -208,30 +216,51 @@ class InternetArchiveOpenCatalog:
             raise RuntimeError("Internet Archive provider row was not created")
 
         with self.db.connection.cursor() as cursor:
+            # Merge by archive identifier first, then title/year, so the
+            # existing CineStream sample entries become licensed records
+            # instead of appearing as duplicate titles.
             cursor.execute("""
-                INSERT INTO media_items
-                  (slug, title, type, poster_path, backdrop_path, overview,
-                   release_year, duration_minutes, rating, genres, cast_list,
-                   seasons_count, episodes_count, tmdb_id, is_trending,
-                   discovered_via, source_identifier, license_url, attribution)
-                VALUES
-                  (%s, %s, 'movie', %s, %s, %s, %s, 0, 0, 'Openly Licensed',
-                   %s, 1, 1, NULL, FALSE, 'Internet Archive Open Catalog',
-                   %s, %s, %s)
-                ON CONFLICT (source_identifier) WHERE source_identifier IS NOT NULL
-                DO UPDATE SET
-                  title = EXCLUDED.title,
-                  overview = EXCLUDED.overview,
-                  release_year = COALESCE(EXCLUDED.release_year, media_items.release_year),
-                  poster_path = EXCLUDED.poster_path,
-                  license_url = EXCLUDED.license_url,
-                  attribution = EXCLUDED.attribution
-                RETURNING id
-            """, (
-                media_slug, title, poster_url, poster_url, description,
-                release_year, attribution, identifier, canonical_license, attribution,
-            ))
-            media_id = cursor.fetchone()[0]
+                SELECT id FROM media_items
+                WHERE source_identifier = %s
+                   OR (LOWER(title) = LOWER(%s) AND release_year = %s)
+                ORDER BY CASE WHEN source_identifier = %s THEN 0 ELSE 1 END
+                LIMIT 1
+            """, (identifier, title, release_year, identifier))
+            existing = cursor.fetchone()
+
+            if existing:
+                media_id = existing[0]
+                cursor.execute("""
+                    UPDATE media_items
+                    SET source_identifier = COALESCE(source_identifier, %s),
+                        license_url = %s,
+                        attribution = %s,
+                        poster_path = %s,
+                        backdrop_path = %s,
+                        discovered_via = 'Internet Archive Open Catalog',
+                        overview = CASE WHEN overview = '' THEN %s ELSE overview END
+                    WHERE id = %s
+                """, (
+                    identifier, canonical_license, attribution, poster_url,
+                    poster_url, description, media_id,
+                ))
+            else:
+                cursor.execute("""
+                    INSERT INTO media_items
+                      (slug, title, type, poster_path, backdrop_path, overview,
+                       release_year, duration_minutes, rating, genres, cast_list,
+                       seasons_count, episodes_count, tmdb_id, is_trending,
+                       discovered_via, source_identifier, license_url, attribution)
+                    VALUES
+                      (%s, %s, 'movie', %s, %s, %s, %s, 0, 0, 'Openly Licensed',
+                       %s, 1, 1, NULL, FALSE, 'Internet Archive Open Catalog',
+                       %s, %s, %s)
+                    RETURNING id
+                """, (
+                    media_slug, title, poster_url, poster_url, description,
+                    release_year, attribution, identifier, canonical_license, attribution,
+                ))
+                media_id = cursor.fetchone()[0]
 
             cursor.execute("""
                 INSERT INTO stream_sources
