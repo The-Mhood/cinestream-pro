@@ -391,7 +391,13 @@ export default function AggregatorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/70">
-                  {data.runs.map((run) => (
+                  {data.runs.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-slate-500">
+                        No aggregation runs have been recorded yet.
+                      </td>
+                    </tr>
+                  ) : data.runs.map((run) => (
                     <tr key={run.id} className="text-slate-300">
                       <td className="py-3 font-mono text-amber-400">
                         #{run.id}
