@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-import math
 import re
 import unicodedata
 from typing import Any
@@ -71,7 +70,7 @@ def _is_public_mp4(file_record: dict[str, Any]) -> bool:
     fmt = str(file_record.get("format", "")).lower()
     return (
         name.lower().endswith(".mp4")
-        and fmt in {"mpeg4", "mpeg-4", "unknown"}
+        and (not fmt or "mpeg4" in fmt or "mpeg-4" in fmt or fmt == "unknown")
         and str(file_record.get("private", "")).lower() not in {"true", "1"}
         and not file_record.get("source") == "metadata"
     )
