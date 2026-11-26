@@ -121,4 +121,4 @@ The GitHub Actions workflow runs the TypeScript check, production build, and Pyt
 
 ## Docker
 
-Docker support may be added or used by operators who prefer containerized infrastructure. It is not required for local development or for the Next.js deployment described above.
+The repository also includes Docker-oriented files for operators who prefer containerized infrastructure. Docker is not required for local development or for the Next.js deployment described above.
