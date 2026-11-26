@@ -81,7 +81,7 @@ class InternetArchiveOpenCatalog:
         self.db = database
         self.http = requests.Session()
         self.http.headers.update({
-            "User-Agent": "CineStreamPro/1.0 (open-media-catalog; contact: admin@cinestream.pro)"
+            "User-Agent": "CineStreamPro/1.0 (open-media-catalog)"
         })
         self.timeout = timeout
 
@@ -165,9 +165,9 @@ class InternetArchiveOpenCatalog:
         )
         creator = _plain_text(item_metadata.get("creator") or record.get("creator"))
         attribution = creator or "Creator not specified in Internet Archive metadata"
-        year_value = _plain_text(item_metadata.get("year") or record.get("year"))
+        year_value = _plain_text(item_metadata.get("year") or item_metadata.get("date") or record.get("year"))
         year_match = re.search(r"(18|19|20)\d{2}", year_value)
-        release_year = int(year_match.group(0)) if year_match else None
+        release_year = int(year_match.group(0)) if year_match else 0
         description = _plain_text(item_metadata.get("description") or record.get("description"))
         description = description[:12000] or f"Openly licensed film hosted by Internet Archive. Archive identifier: {identifier}."
         media_slug = _slug(title, identifier)
@@ -223,8 +223,8 @@ class InternetArchiveOpenCatalog:
         return True
 
     def run(self, limit: int = 100, page_size: int = 50, start_page: int = 1) -> dict[str, int]:
-        if limit < 1 or page_size < 1 or start_page < 1:
-            raise ValueError("limit, page_size, and start_page must all be positive")
+        if limit < 0 or page_size < 1 or start_page < 1:
+            raise ValueError("limit must be zero (unlimited) or positive; page_size and start_page must be positive")
         self.prepare_schema()
         imported = 0
         examined = 0
@@ -232,8 +232,9 @@ class InternetArchiveOpenCatalog:
         page = start_page
         total_available = None
 
-        while imported < limit:
-            records, total = self.search(page=page, rows=min(page_size, limit - imported + rejected_or_unplayable))
+        while limit == 0 or imported < limit:
+            remaining = page_size if limit == 0 else max(page_size, limit - imported + rejected_or_unplayable)
+            records, total = self.search(page=page, rows=min(page_size, remaining))
             total_available = total
             if not records:
                 break
@@ -247,7 +248,7 @@ class InternetArchiveOpenCatalog:
                 except requests.RequestException as exc:
                     rejected_or_unplayable += 1
                     logger.warning("Archive item %s could not be retrieved: %s", record.get("identifier"), exc)
-                if imported >= limit:
+                if limit > 0 and imported >= limit:
                     break
             logger.info(
                 "Open catalog progress: imported=%s examined=%s indexed_total=%s",
