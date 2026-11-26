@@ -430,9 +430,10 @@ does not automatically add discovered references to the playback catalogue.
 Source registration and server-side health checks are separately restricted by
 \`STREAM_PROBE_ALLOWED_HOSTS\`. Configure exact hostnames there; unlisted hosts,
 IP-literal destinations, local names, non-HTTPS URLs, credentials in URLs, and
-redirects outside the allowlist are rejected. A health probe is only an HTTP
-availability check; it does not prove that a response is a valid movie or that
-the operator has rights to distribute it.
+redirects outside the allowlist are rejected. A health probe reads at most the first 4 KB using an HTTP range request and checks
+for an HLS, DASH, MP4, or WebM signature matching the declared format. This verifies
+the media container/manifest type, not the movie's identity, completeness, safety,
+licensing, or the operator's rights to distribute it.
 
 These controls are application-layer defenses. Production deployments should
 also enforce outbound network egress rules and protect write endpoints with
