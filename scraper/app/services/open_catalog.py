@@ -91,10 +91,12 @@ class InternetArchiveOpenCatalog:
             ALTER TABLE media_items
               ADD COLUMN IF NOT EXISTS source_identifier TEXT,
               ADD COLUMN IF NOT EXISTS license_url TEXT,
-              ADD COLUMN IF NOT EXISTS attribution TEXT;
+              ADD COLUMN IF NOT EXISTS attribution TEXT
+        """)
+        self.db.execute("""
             CREATE UNIQUE INDEX IF NOT EXISTS media_items_source_identifier_idx
               ON media_items(source_identifier)
-              WHERE source_identifier IS NOT NULL;
+              WHERE source_identifier IS NOT NULL
         """)
         self.db.execute("""
             INSERT INTO providers
@@ -103,15 +105,20 @@ class InternetArchiveOpenCatalog:
               ('internet-archive', 'Internet Archive — Openly Licensed Films',
                'https://archive.org', 'active', 0, 100.0, 0)
             ON CONFLICT (slug) DO UPDATE
-              SET name = EXCLUDED.name, base_url = EXCLUDED.base_url;
+              SET name = EXCLUDED.name, base_url = EXCLUDED.base_url
+        """)
+        # Retire the old fake sample URLs; never offer them as working sources.
+        self.db.execute("""
             UPDATE stream_sources
               SET status = 'offline', is_active = FALSE
               WHERE url LIKE '%example.com%'
                  OR url LIKE '%offline-mirror.invalid%'
-                 OR url LIKE '%stream.example.com%';
+                 OR url LIKE '%stream.example.com%'
+        """)
+        self.db.execute("""
             UPDATE providers
               SET status = 'offline'
-              WHERE base_url LIKE '%example.com%';
+              WHERE base_url LIKE '%example.com%'
         """)
 
     def search(self, page: int, rows: int) -> tuple[list[dict[str, Any]], int]:
