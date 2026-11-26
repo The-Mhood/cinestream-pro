@@ -89,15 +89,17 @@ export default function MovieCard({ item }: { item: CatalogItem }) {
 
         <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <span>{item.releaseYear}</span>
+            <span>{item.releaseYear > 0 ? item.releaseYear : "Year unknown"}</span>
             <span className="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-slate-300">
               {item.type}
             </span>
           </div>
-          <div className="flex items-center gap-1 font-semibold text-amber-400">
-            <Star className="h-3.5 w-3.5 fill-amber-400" />
-            <span>{item.rating.toFixed(1)}</span>
-          </div>
+          {item.rating > 0 && (
+            <div className="flex items-center gap-1 font-semibold text-amber-400">
+              <Star className="h-3.5 w-3.5 fill-amber-400" />
+              <span>{item.rating.toFixed(1)}</span>
+            </div>
+          )}
         </div>
       </div>
     </Link>
