@@ -189,7 +189,7 @@ export default function CatalogExplorer({
                     className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-300"
                   >
                     <Play className="h-4 w-4 fill-slate-950" />
-                    Play Server 1
+                    {heroItem.activeSourceCount && heroItem.activeSourceCount > 0 ? "Play verified source" : "View title"}
                   </Link>
                   <button
                     type="button"
