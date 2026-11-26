@@ -27,8 +27,8 @@ export interface CatalogItem {
 }
 
 export default function MovieCard({ item }: { item: CatalogItem }) {
-  const activeCount = item.activeSourceCount ?? item.sourceCount ?? 3;
-  const maxQuality = item.maxQuality ?? "1080p";
+  const activeCount = item.activeSourceCount ?? 0;
+  const maxQuality = item.maxQuality ?? "Unverified";
 
   return (
     <Link
@@ -57,7 +57,7 @@ export default function MovieCard({ item }: { item: CatalogItem }) {
           </span>
           <span className="flex items-center gap-1 rounded-md border border-emerald-500/30 bg-slate-950/85 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 backdrop-blur-md">
             <Server className="h-3 w-3" />
-            {activeCount} {activeCount === 1 ? "Server" : "Servers"}
+            {activeCount > 0 ? `${activeCount} ${activeCount === 1 ? "Server" : "Servers"}` : "No verified servers"}
           </span>
         </div>
 
@@ -68,7 +68,7 @@ export default function MovieCard({ item }: { item: CatalogItem }) {
             Watch Now
           </span>
           <span className="mt-2.5 text-[11px] font-medium text-slate-200">
-            {item.discoveredVia}
+            {activeCount > 0 ? `${activeCount} verified source${activeCount === 1 ? "" : "s"}` : "Sources awaiting verification"}
           </span>
         </div>
 
