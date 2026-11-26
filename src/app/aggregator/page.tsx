@@ -63,6 +63,7 @@ interface AggregatorData {
     totalSources: number;
     activeSources: number;
     offlineSources: number;
+    pendingSources: number;
     avgLatencyMs: number;
   };
 }
@@ -216,8 +217,8 @@ export default function AggregatorPage() {
 
       {/* KPI Grid */}
       {loading || !data ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((n) => (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((n) => (
             <div
               key={n}
               className="h-28 animate-pulse rounded-2xl border border-slate-800 bg-slate-900/60"
@@ -226,7 +227,7 @@ export default function AggregatorPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
             <div className="rounded-2xl border border-slate-800 bg-[#0f172a] p-5">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Indexed Titles</span>
@@ -281,7 +282,20 @@ export default function AggregatorPage() {
                 {data.stats.offlineSources}
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Auto-bypassed by player failover
+                Failed server-side verification
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-[#0f172a] p-5">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>Pending Verification</span>
+                <Clock className="h-4 w-4 text-amber-400" />
+              </div>
+              <p className="mt-2 font-display text-3xl font-extrabold text-amber-300">
+                {data.stats.pendingSources}
+              </p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Not yet checked by the server
               </p>
             </div>
           </div>
