@@ -234,7 +234,7 @@ export default function VideoPlayer({
         {/* Top-left Active Source HUD */}
         <div className="pointer-events-none absolute left-3 top-3 flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-950/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-md">
-            <span className={`h-2 w-2 rounded-full ${source.status === "active" ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+            <span className={`h-2 w-2 rounded-full ${source.status === "active" && source.isActive ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
             {source.serverLabel}
           </span>
           <span className="rounded-lg border border-amber-400/30 bg-amber-400/15 px-2 py-1 text-[11px] font-bold text-amber-300 backdrop-blur-md">
