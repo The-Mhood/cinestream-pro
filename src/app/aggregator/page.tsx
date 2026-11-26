@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthContext";
 import CatalogImportPanel from "@/components/CatalogImportPanel";
 import FirstPartySyncPanel from "@/components/FirstPartySyncPanel";
+import TmdbCatalogueSyncPanel from "@/components/TmdbCatalogueSyncPanel";
 import Link from "next/link";
 import {
   Activity,
@@ -150,6 +151,7 @@ export default function AggregatorPage() {
 
       {user?.role === "admin" && (
         <>
+        <TmdbCatalogueSyncPanel />
         <FirstPartySyncPanel />
         <CatalogImportPanel />
         <section className="mb-8 rounded-2xl border border-sky-500/25 bg-[#0c1628] p-6">
