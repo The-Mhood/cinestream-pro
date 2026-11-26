@@ -24,7 +24,7 @@ def main():
         action="store_true",
         help="Import openly licensed, publicly playable Internet Archive films",
     )
-    parser.add_argument("--limit", type=int, default=100, help="Maximum open films to import")
+    parser.add_argument("--limit", type=int, default=100, help="Maximum open films to import; use 0 to import all eligible results")
     parser.add_argument("--page-size", type=int, default=50, help="Internet Archive search page size")
     parser.add_argument("--start-page", type=int, default=1, help="Internet Archive search page to start from")
     args = parser.parse_args()
