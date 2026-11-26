@@ -196,6 +196,12 @@ REDIS_URL=redis://redis:6379
 # APIs
 TMDB_API_KEY=your_tmdb_api_key
 
+# Outbound stream health checks: exact HTTPS hostnames only
+STREAM_PROBE_ALLOWED_HOSTS=media.example.org,cdn.example.org
+
+# Recursive security discovery: domains you own or are authorized to assess
+DISCOVERY_ALLOWED_HOSTS=media.example.org,cdn.example.org
+
 # Services
 LOG_LEVEL=info
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -379,3 +385,41 @@ MIT License - See LICENSE file for details
 
 **Last Updated**: 2024
 **Version**: 2.0.0
+
+
+---
+
+## Authorized Website Discovery
+
+The backend includes a bounded crawler for websites that you own or are explicitly
+authorized to assess. It follows links only within the exact hostnames configured in
+\`DISCOVERY_ALLOWED_HOSTS\`, records page titles, same-scope links, in-scope HTML5
+media references, and the hostnames of third-party iframe embeds. It does not fetch
+third-party embeds or proxy media files.
+
+Run it from the backend directory:
+
+\`\`\`bash
+export DISCOVERY_ALLOWED_HOSTS="media.yourdomain.com,cdn.yourdomain.com"
+python -m app.services.authorized_crawler \\
+  --start-url "https://media.yourdomain.com/" \\
+  --max-pages 100 \\
+  --max-depth 2
+\`\`\`
+
+The crawler requires HTTPS, exact host allowlisting, public DNS resolution, a
+maximum depth of five, a maximum of 500 pages, bounded response sizes, timeouts,
+and redirect revalidation. It runs sequentially with a delay between requests.
+Use only domains covered by your authorization.
+
+Source registration and server-side health checks are separately restricted by
+\`STREAM_PROBE_ALLOWED_HOSTS\`. Configure exact hostnames there; unlisted hosts,
+IP-literal destinations, local names, non-HTTPS URLs, credentials in URLs, and
+redirects outside the allowlist are rejected. A health probe is only an HTTP
+availability check; it does not prove that a response is a valid movie or that
+the operator has rights to distribute it.
+
+These controls are application-layer defenses. Production deployments should
+also enforce outbound network egress rules and protect write endpoints with
+authentication, authorization, and rate limits. DNS checks alone cannot fully
+eliminate DNS-rebinding races.
