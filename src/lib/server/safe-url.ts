@@ -33,6 +33,9 @@ export function validateOutboundUrl(input: string): URL {
   if (url.protocol !== "https:") {
     throw new Error("Only HTTPS source URLs are permitted");
   }
+  if (url.port) {
+    throw new Error("Non-standard HTTPS ports are not permitted");
+  }
   if (url.username || url.password) {
     throw new Error("URLs containing credentials are not permitted");
   }
