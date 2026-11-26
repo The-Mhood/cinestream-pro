@@ -115,15 +115,6 @@ export default function WatchView({
         )
       );
 
-      fetch("/api/stream/health", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceId: failedSource.id,
-          event: "playback_error",
-        }),
-      }).catch(() => {});
-
       // Find next healthy fallback server
       const fallback = episodeSources.find(
         (s) => s.id !== failedSource.id && s.status === "active"
@@ -143,17 +134,6 @@ export default function WatchView({
     },
     [episodeSources]
   );
-
-  const handleServerHealthy = useCallback((healthySource: StreamSourceItem) => {
-    fetch("/api/stream/health", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceId: healthySource.id,
-        event: "playback_ok",
-      }),
-    }).catch(() => {});
-  }, []);
 
   const handleProgressUpdate = useCallback(
     (seconds: number) => {
@@ -282,7 +262,6 @@ export default function WatchView({
           autoPlay={autoPlay}
           failoverNotice={failoverNotice}
           onServerError={handleServerError}
-          onServerHealthy={handleServerHealthy}
           onProgressUpdate={handleProgressUpdate}
         />
       ) : (
@@ -373,18 +352,20 @@ export default function WatchView({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setShowAddSource((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-white"
-          >
-            <Plus className="h-3.5 w-3.5 text-amber-400" />
-            Add Mirror URL
-          </button>
+          {user?.role === "admin" && (
+            <button
+              type="button"
+              onClick={() => setShowAddSource((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-amber-400/50 hover:text-white"
+            >
+              <Plus className="h-3.5 w-3.5 text-amber-400" />
+              Add Mirror URL
+            </button>
+          )}
         </div>
 
         {/* Optional Add Custom Mirror Drawer */}
-        {showAddSource && (
+        {user?.role === "admin" && showAddSource && (
           <form
             onSubmit={handleAddCustomSource}
             className="mb-5 grid grid-cols-1 gap-3 rounded-xl border border-slate-700/80 bg-slate-900/90 p-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -491,27 +472,31 @@ export default function WatchView({
                 <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 text-[11px]">
                   <span
                     className={`font-medium ${
-                      isHealthy ? "text-emerald-400" : "text-red-400"
+                      isHealthy ? "text-emerald-400" : src.status === "pending" ? "text-amber-300" : "text-red-400"
                     }`}
                   >
                     {isHealthy
-                      ? `Online • ${src.latencyMs}ms`
-                      : "Offline (Click to test failover)"}
+                      ? `Server-verified • ${src.latencyMs}ms`
+                      : src.status === "pending"
+                        ? "Awaiting server verification"
+                        : "Offline"}
                   </span>
 
-                  <button
-                    type="button"
-                    onClick={() => handleProbeHealth(src.id)}
-                    disabled={probingId === src.id}
-                    className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:opacity-50"
-                  >
-                    <Activity
-                      className={`h-3 w-3 ${
-                        probingId === src.id ? "animate-pulse text-amber-400" : ""
-                      }`}
-                    />
-                    {probingId === src.id ? "Pinging..." : "Test Ping"}
-                  </button>
+                  {user?.role === "admin" && (
+                    <button
+                      type="button"
+                      onClick={() => handleProbeHealth(src.id)}
+                      disabled={probingId === src.id}
+                      className="inline-flex items-center gap-1 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:opacity-50"
+                    >
+                      <Activity
+                        className={`h-3 w-3 ${
+                          probingId === src.id ? "animate-pulse text-amber-400" : ""
+                        }`}
+                      />
+                      {probingId === src.id ? "Verifying..." : "Verify Source"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
