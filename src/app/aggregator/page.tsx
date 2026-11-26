@@ -263,10 +263,7 @@ export default function AggregatorPage() {
                 <Activity className="h-4 w-4 text-sky-400" />
               </div>
               <p className="mt-2 font-display text-3xl font-extrabold text-white">
-                {data.stats.avgLatencyMs}
-                <span className="ml-1 text-sm font-medium text-slate-400">
-                  ms
-                </span>
+                {data.stats.activeSources > 0 ? `${data.stats.avgLatencyMs} ms` : "—"}
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
                 Based on stored provider telemetry
@@ -343,7 +340,7 @@ export default function AggregatorPage() {
                           Latency
                         </span>
                         <span className="font-bold text-slate-200">
-                          {prov.avgLatencyMs}ms
+                          {prov.avgLatencyMs > 0 ? `${prov.avgLatencyMs}ms` : "Not measured"}
                         </span>
                       </div>
                       <div>
@@ -351,7 +348,7 @@ export default function AggregatorPage() {
                           Uptime
                         </span>
                         <span className="font-bold text-emerald-400">
-                          {prov.uptimePercent}%
+                          {prov.uptimePercent > 0 ? `${prov.uptimePercent}%` : "Not measured"}
                         </span>
                       </div>
                       <div>
