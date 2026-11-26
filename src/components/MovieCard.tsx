@@ -65,7 +65,7 @@ export default function MovieCard({ item }: { item: CatalogItem }) {
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/60 opacity-0 backdrop-blur-[2px] transition duration-300 group-hover:opacity-100">
           <span className="flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-amber-400/30 transition group-hover:scale-105">
             <Play className="h-4 w-4 fill-slate-950" />
-            Watch Now
+            {activeCount > 0 ? "Watch Now" : "View Title"}
           </span>
           <span className="mt-2.5 text-[11px] font-medium text-slate-200">
             {activeCount > 0 ? `${activeCount} verified source${activeCount === 1 ? "" : "s"}` : "Sources awaiting verification"}
