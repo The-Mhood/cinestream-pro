@@ -47,7 +47,7 @@ export default function WatchView({
     const filtered = sources.filter(
       (s) => s.season === selectedSeason && s.episode === selectedEpisode
     );
-    return filtered.length > 0 ? filtered : sources;
+    return filtered;
   }, [sources, media.type, selectedSeason, selectedEpisode]);
 
   const defaultSource = useMemo(() => {
@@ -55,9 +55,7 @@ export default function WatchView({
       const match = episodeSources.find((s) => s.id === initialServerId);
       if (match && match.status === "active") return match;
     }
-    return (
-      episodeSources.find((s) => s.status === "active") ?? episodeSources[0]
-    );
+    return episodeSources.find((s) => s.status === "active" && s.isActive);
   }, [episodeSources, initialServerId]);
 
   const [activeSourceId, setActiveSourceId] = useState<number>(
@@ -79,9 +77,8 @@ export default function WatchView({
 
   const activeSource = useMemo(() => {
     return (
-      episodeSources.find((s) => s.id === activeSourceId) ??
-      episodeSources[0] ??
-      sources[0]
+      episodeSources.find((s) => s.id === activeSourceId && s.status === "active" && s.isActive) ??
+      episodeSources.find((s) => s.status === "active" && s.isActive)
     );
   }, [episodeSources, activeSourceId, sources]);
 
@@ -99,6 +96,7 @@ export default function WatchView({
   }, [sources, selectedSeason, media.type]);
 
   const handleSelectServer = (src: StreamSourceItem) => {
+    if (src.status !== "active" || !src.isActive) return;
     setFailoverNotice(null);
     setActiveSourceId(src.id);
     setAutoPlay(true);
@@ -266,7 +264,7 @@ export default function WatchView({
         />
       ) : (
         <div className="flex aspect-video items-center justify-center rounded-2xl border border-slate-800 bg-slate-900 text-sm text-slate-400">
-          No streaming sources available for this selection.
+          No server-verified sources are available for this selection. An administrator must verify an approved source before playback.
         </div>
       )}
 
@@ -435,7 +433,8 @@ export default function WatchView({
                 <button
                   type="button"
                   onClick={() => handleSelectServer(src)}
-                  className="flex w-full items-start justify-between gap-2 text-left"
+                  disabled={!isHealthy}
+                  className="flex w-full items-start justify-between gap-2 text-left disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   <div>
                     <div className="flex items-center gap-2">
@@ -576,10 +575,12 @@ export default function WatchView({
                 </span>
               </div>
               <div>
-                <span className="block text-slate-500">Aggregation Node</span>
-                <span className="mt-1 inline-flex items-center gap-1 font-semibold text-emerald-300">
+                <span className="block text-slate-500">Source verification</span>
+                <span className="mt-1 inline-flex items-center gap-1 font-semibold text-slate-200">
                   <ShieldAlert className="h-3.5 w-3.5" />
-                  Ad-Free Verified Streams
+                  {sources.some((source) => source.status === "active" && source.isActive)
+                    ? "Server-verified sources available"
+                    : "No server-verified sources yet"}
                 </span>
               </div>
             </div>
