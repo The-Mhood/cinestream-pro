@@ -536,12 +536,15 @@ export default function WatchView({
                     <Film className="h-3 w-3" />
                     {media.type}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-400">
-                    <Star className="h-3.5 w-3.5 fill-amber-400" />
-                    {media.rating.toFixed(1)} / 10
-                  </span>
+                  {media.rating > 0 && (
+                    <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-400">
+                      <Star className="h-3.5 w-3.5 fill-amber-400" />
+                      {media.rating.toFixed(1)} / 10
+                    </span>
+                  )}
                   <span className="text-xs text-slate-400">
-                    {media.releaseYear} • {media.durationMinutes} min
+                    {media.releaseYear > 0 ? media.releaseYear : "Year unknown"}
+                    {media.durationMinutes > 0 ? ` • ${media.durationMinutes} min` : ""}
                   </span>
                 </div>
                 <h1 className="mt-2 font-display text-3xl font-extrabold text-white">
@@ -576,6 +579,32 @@ export default function WatchView({
             <p className="mt-4 text-sm leading-relaxed text-slate-300">
               {media.overview}
             </p>
+
+            {media.licenseUrl && (
+              <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-xs text-slate-300">
+                <p>
+                  <span className="font-semibold text-white">Open-content licence:</span>{" "}
+                  <a
+                    href={media.licenseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-300 underline underline-offset-2 hover:text-amber-200"
+                  >
+                    View licence terms
+                  </a>
+                </p>
+                {media.attribution && (
+                  <p className="mt-1 text-slate-400">
+                    Attribution: {media.attribution}
+                  </p>
+                )}
+                {media.sourceIdentifier && (
+                  <p className="mt-1 text-slate-500">
+                    Internet Archive item: {media.sourceIdentifier}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="mt-6 grid grid-cols-1 gap-4 border-t border-slate-800 pt-4 text-xs sm:grid-cols-3">
               <div>
