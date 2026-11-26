@@ -2,28 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { streamSources } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { probeApprovedUrl, validateOutboundUrl } from "@/lib/server/safe-url";
 
 export const dynamic = "force-dynamic";
-
-async function probeUrl(url: string): Promise<{ ok: boolean; latencyMs: number }> {
-  if (url.includes(".invalid") || url.includes("offline-mirror")) {
-    return { ok: false, latencyMs: 999 };
-  }
-  const start = Date.now();
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(url, {
-      method: "HEAD",
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    const latencyMs = Math.max(8, Date.now() - start);
-    return { ok: res.ok || res.status === 206 || res.status === 405, latencyMs };
-  } catch {
-    return { ok: false, latencyMs: 999 };
-  }
-}
+export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -42,7 +24,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Source not found" }, { status: 404 });
   }
 
-  const result = await probeUrl(source.url);
+  try {\n    validateOutboundUrl(source.url);\n  } catch (error) {\n    return NextResponse.json(\n      { error: error instanceof Error ? error.message : "Source host is not approved" },\n      { status: 403 }\n    );\n  }\n\n  const result = await probeApprovedUrl(source.url).catch(() => ({\n    ok: false, latencyMs: 999, statusCode: null,\n  }));
   const newStatus = result.ok ? "active" : "offline";
 
   const [updated] = await db
@@ -115,7 +97,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ source: updated });
     }
 
-    const result = await probeUrl(source.url);
+    try {\n      validateOutboundUrl(source.url);\n    } catch (error) {\n      return NextResponse.json(\n        { error: error instanceof Error ? error.message : "Source host is not approved" },\n        { status: 403 }\n      );\n    }\n\n    const result = await probeApprovedUrl(source.url).catch(() => ({\n      ok: false, latencyMs: 999, statusCode: null,\n    }));
     const [updated] = await db
       .update(streamSources)
       .set({
