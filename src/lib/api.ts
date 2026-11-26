@@ -10,7 +10,7 @@ export async function getMovieDetail(id: number) {
   return response.json();
 }
 
-export async function addToWatchlist(movieId: number, seriesId: number = null) {
+export async function addToWatchlist(movieId: number, seriesId: number | null = null) {
   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/watchlist`, {
     method: 'POST',
     headers: {
