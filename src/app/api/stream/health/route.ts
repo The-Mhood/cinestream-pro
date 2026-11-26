@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { streamSources } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
-import { probeApprovedUrl, validateOutboundUrl } from "@/lib/server/safe-url";
+import { validateOutboundUrl, verifyApprovedMediaUrl } from "@/lib/server/safe-url";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const result = await probeApprovedUrl(source.url).catch(() => ({
-    ok: false, latencyMs: 999, statusCode: null,
+  const result = await verifyApprovedMediaUrl(source.url, source.format).catch(() => ({
+    ok: false, latencyMs: 999, statusCode: null, detectedFormat: null,
   }));
   const newStatus = result.ok ? "active" : "offline";
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     .where(eq(streamSources.id, source.id))
     .returning();
 
-  return NextResponse.json({ source: updated });
+  return NextResponse.json({ source: updated, verification: result });
 }
 
 export async function POST(request: NextRequest) {
@@ -117,8 +117,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await probeApprovedUrl(source.url).catch(() => ({
-      ok: false, latencyMs: 999, statusCode: null,
+    const result = await verifyApprovedMediaUrl(source.url, source.format).catch(() => ({
+      ok: false, latencyMs: 999, statusCode: null, detectedFormat: null,
     }));
     const [updated] = await db
       .update(streamSources)
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       .where(eq(streamSources.id, source.id))
       .returning();
 
-    return NextResponse.json({ source: updated });
+    return NextResponse.json({ source: updated, verification: result });
   } catch (err) {
     console.error("POST /api/stream/health error:", err);
     return NextResponse.json(
