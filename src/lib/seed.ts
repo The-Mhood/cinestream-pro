@@ -8,7 +8,7 @@ import {
   watchlistItems,
 } from "@/db/schema";
 import { hashPassword } from "./auth";
-import { count, eq } from "drizzle-orm";
+import { count, eq, inArray, like, or } from "drizzle-orm";
 
 let seedPromise: Promise<void> | null = null;
 
@@ -24,7 +24,7 @@ export async function ensureSeeded() {
 }
 
 async function runSeed() {
-  // The public demo credentials must never grant administrative privileges.
+  // The public demo account must never grant administrative privileges.
   await db
     .update(users)
     .set({ role: "user" })
@@ -34,21 +34,78 @@ async function runSeed() {
     .select({ value: count() })
     .from(mediaItems);
 
+  // One-time cleanup for the earlier demo seed, which marked sample URLs as
+  // verified and inserted synthetic provider telemetry.
+  const legacySeedSummary =
+    "Initial multi-provider index sync completed across Mux Edge, Unified CDN, OpenArchive, Cupertino HLS, and Mirror Node.";
+  const [legacySeedRun] = await db
+    .select({ id: aggregationRuns.id })
+    .from(aggregationRuns)
+    .where(eq(aggregationRuns.summary, legacySeedSummary))
+    .limit(1);
+
+  if (legacySeedRun) {
+    await db
+      .update(streamSources)
+      .set({
+        status: "pending",
+        isActive: false,
+        latencyMs: 0,
+        successCount: 0,
+        failCount: 0,
+      })
+      .where(or(
+        like(streamSources.url, "%test-streams.mux.dev%"),
+        like(streamSources.url, "%demo.unified-streaming.com%"),
+        like(streamSources.url, "%commondatastorage.googleapis.com%"),
+        like(streamSources.url, "%devstreaming-cdn.apple.com%"),
+        like(streamSources.url, "%offline-mirror.invalid%")
+      ));
+
+    await db
+      .update(providers)
+      .set({
+        status: "unverified",
+        avgLatencyMs: 0,
+        uptimePercent: 0,
+        totalStreamsIndexed: 0,
+      })
+      .where(inArray(providers.slug, [
+        "mux-edge",
+        "unified-cdn",
+        "open-archive",
+        "cupertino-hls",
+        "mirror-node",
+      ]));
+
+    await db
+      .delete(aggregationRuns)
+      .where(eq(aggregationRuns.summary, legacySeedSummary));
+  }
+
   if (mediaCount > 0) {
     return;
   }
 
-  // 1. Seed Demo User
-  const [demoUser] = await db
-    .insert(users)
-    .values({
-      email: "demo@cinestream.pro",
-      name: "Alex Mercer",
-      passwordHash: hashPassword("cinestream"),
-      role: "user",
-    })
-    .onConflictDoNothing()
-    .returning();
+  const demoEnabled =
+    process.env.NODE_ENV !== "production" ||
+    process.env.ENABLE_DEMO_ACCOUNT === "true";
+
+  // 1. Seed Demo User only outside production unless explicitly enabled.
+  let demoUser: typeof users.$inferSelect | undefined;
+  if (demoEnabled) {
+    const [createdDemoUser] = await db
+      .insert(users)
+      .values({
+        email: "demo@cinestream.pro",
+        name: "Alex Mercer",
+        passwordHash: hashPassword("cinestream"),
+        role: "user",
+      })
+      .onConflictDoNothing()
+      .returning();
+    demoUser = createdDemoUser;
+  }
 
   // 2. Seed Providers
   const providerSeeds = [
@@ -97,7 +154,13 @@ async function runSeed() {
       uptimePercent: 86.4,
       totalStreamsIndexed: 5,
     },
-  ];
+  ].map((provider) => ({
+    ...provider,
+    status: "unverified",
+    avgLatencyMs: 0,
+    uptimePercent: 0,
+    totalStreamsIndexed: 0,
+  }));
 
   const insertedProviders = await db
     .insert(providers)
@@ -131,7 +194,7 @@ async function runSeed() {
       episodesCount: 1,
       tmdbId: 118193,
       isTrending: true,
-      discoveredVia: "Unified CDN + 3 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "sintel",
@@ -150,7 +213,7 @@ async function runSeed() {
       episodesCount: 1,
       tmdbId: 45745,
       isTrending: true,
-      discoveredVia: "OpenArchive + 3 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "charge",
@@ -169,7 +232,7 @@ async function runSeed() {
       episodesCount: 1,
       tmdbId: 1059710,
       isTrending: true,
-      discoveredVia: "Mux Edge + 2 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "agent-327-operation-barbershop",
@@ -188,7 +251,7 @@ async function runSeed() {
       episodesCount: 4,
       tmdbId: 461490,
       isTrending: true,
-      discoveredVia: "Cupertino HLS + 3 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "cosmos-laundromat",
@@ -207,7 +270,7 @@ async function runSeed() {
       episodesCount: 3,
       tmdbId: 355021,
       isTrending: true,
-      discoveredVia: "Mux Edge + 3 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "spring",
@@ -226,7 +289,7 @@ async function runSeed() {
       episodesCount: 3,
       tmdbId: 593560,
       isTrending: false,
-      discoveredVia: "OpenArchive + 2 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "sprite-fright",
@@ -245,7 +308,7 @@ async function runSeed() {
       episodesCount: 1,
       tmdbId: 889741,
       isTrending: false,
-      discoveredVia: "Mux Edge + 2 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "elephants-dream",
@@ -264,7 +327,7 @@ async function runSeed() {
       episodesCount: 1,
       tmdbId: 13847,
       isTrending: false,
-      discoveredVia: "OpenArchive + 2 mirrors",
+      discoveredVia: "Sample catalogue",
     },
     {
       slug: "big-buck-bunny",
@@ -283,7 +346,7 @@ async function runSeed() {
       episodesCount: 1,
       tmdbId: 10378,
       isTrending: true,
-      discoveredVia: "Mux Edge + 3 mirrors",
+      discoveredVia: "Sample catalogue",
     },
   ];
 
@@ -325,11 +388,12 @@ async function runSeed() {
       language,
       season,
       episode,
-      status,
-      latencyMs,
-      isActive: status !== "offline",
-      successCount: status === "offline" ? 2 : 48,
-      failCount: status === "offline" ? 9 : 0,
+      // Seeded demo URLs are never trusted as healthy before a real probe.
+      status: "pending",
+      latencyMs: 0,
+      isActive: false,
+      successCount: 0,
+      failCount: 0,
     });
   };
 
@@ -648,13 +712,4 @@ async function runSeed() {
     }
   }
 
-  // 6. Seed initial Aggregation Run log
-  await db.insert(aggregationRuns).values({
-    providersScanned: 5,
-    titlesDiscovered: catalogSeeds.length,
-    sourcesVerified: sourceSeeds.length,
-    status: "completed",
-    summary:
-      "Initial multi-provider index sync completed across Mux Edge, Unified CDN, OpenArchive, Cupertino HLS, and Mirror Node.",
-  });
 }
