@@ -11,7 +11,6 @@ import {
   Globe,
   Loader2,
   Radar,
-  RefreshCw,
   Server,
   Sparkles,
   WifiOff,
@@ -76,8 +75,6 @@ export default function AggregatorPage() {
   const [crawlError, setCrawlError] = useState<string | null>(null);
   const [crawling, setCrawling] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
-  const [lastSyncMessage, setLastSyncMessage] = useState<string | null>(null);
 
   const fetchTelemetry = useCallback(async () => {
     try {
@@ -94,21 +91,6 @@ export default function AggregatorPage() {
   useEffect(() => {
     fetchTelemetry();
   }, [fetchTelemetry]);
-
-  const handleRunDiscovery = async () => {
-    setSyncing(true);
-    setLastSyncMessage(null);
-    try {
-      const res = await fetch("/api/aggregator/sync", { method: "POST" });
-      const json = await res.json();
-      if (res.ok && json.run) {
-        setLastSyncMessage(json.run.summary);
-        await fetchTelemetry();
-      }
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleAuthorizedCrawl = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -148,8 +130,8 @@ export default function AggregatorPage() {
             Multi-Provider Aggregator Hub
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Monitor upstream stream nodes, inspect mirror health latency, and
-            run automated discovery scans into PostgreSQL.
+            Inspect stored provider telemetry and inventory websites within an
+            explicitly authorized discovery scope.
           </p>
         </div>
 
@@ -160,37 +142,8 @@ export default function AggregatorPage() {
           >
             View Catalog
           </Link>
-          <button
-            type="button"
-            onClick={handleRunDiscovery}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-amber-500/20 transition hover:bg-amber-300 disabled:opacity-60"
-          >
-            {syncing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            {syncing ? "Scanning Providers..." : "Run Discovery Scan"}
-          </button>
         </div>
       </div>
-
-      {/* Sync Result Banner */}
-      {lastSyncMessage && (
-        <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-xs font-medium text-emerald-200">
-          <div className="flex items-center gap-2.5">
-            <Sparkles className="h-4 w-4 shrink-0 text-emerald-400" />
-            <span>{lastSyncMessage}</span>
-          </div>
-          <Link
-            href="/"
-            className="shrink-0 font-bold text-emerald-300 underline hover:text-white"
-          >
-            Browse Updated Catalog →
-          </Link>
-        </div>
-      )}
 
       {user?.role === "admin" && (
         <section className="mb-8 rounded-2xl border border-sky-500/25 bg-[#0c1628] p-6">
@@ -299,7 +252,7 @@ export default function AggregatorPage() {
                 </span>
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Verified HLS &amp; MP4 endpoints
+                Configured HLS &amp; MP4 sources
               </p>
             </div>
 
@@ -315,7 +268,7 @@ export default function AggregatorPage() {
                 </span>
               </p>
               <p className="mt-1 text-[11px] text-slate-500">
-                Across healthy CDN mirrors
+                Based on stored provider telemetry
               </p>
             </div>
 
