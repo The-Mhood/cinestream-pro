@@ -108,6 +108,14 @@ async function initializeDatabase() {
         status TEXT NOT NULL DEFAULT 'completed',
         summary TEXT NOT NULL
       );
+
+      ALTER TABLE media_items
+        ADD COLUMN IF NOT EXISTS source_identifier TEXT,
+        ADD COLUMN IF NOT EXISTS license_url TEXT,
+        ADD COLUMN IF NOT EXISTS attribution TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS media_items_source_identifier_idx
+        ON media_items(source_identifier)
+        WHERE source_identifier IS NOT NULL;
     `);
 
     console.log("✓ Database schema created successfully");
