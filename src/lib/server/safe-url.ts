@@ -14,7 +14,7 @@ function configuredHosts(): Set<string> {
   return new Set(
     (process.env.STREAM_PROBE_ALLOWED_HOSTS ?? "")
       .split(",")
-      .map((host) => host.trim().toLowerCase().replace(/\\.$/, ""))
+      .map((host) => host.trim().toLowerCase().replace(/\.$/, ""))
       .filter(Boolean)
   );
 }
@@ -34,7 +34,7 @@ export function validateOutboundUrl(input: string): URL {
     throw new Error("URLs containing credentials are not permitted");
   }
 
-  const hostname = url.hostname.toLowerCase().replace(/\\.$/, "");
+  const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
   if (
     !hostname ||
     BLOCKED_HOSTS.has(hostname) ||
@@ -43,7 +43,7 @@ export function validateOutboundUrl(input: string): URL {
     hostname.endsWith(".internal") ||
     hostname.endsWith(".test") ||
     hostname.endsWith(".invalid") ||
-    /^\\d+(\\.\\d+){3}$/.test(hostname) ||
+    /^\d+(\.\d+){3}$/.test(hostname) ||
     hostname.includes(":")
   ) {
     throw new Error("Private, local, or IP-literal destinations are not permitted");
@@ -54,8 +54,6 @@ export function validateOutboundUrl(input: string): URL {
     throw new Error("Source host is not in STREAM_PROBE_ALLOWED_HOSTS");
   }
 
-  // Fragments are never sent to the remote server and can make URL comparisons
-  // misleading, so remove them before persisting or probing.
   url.hash = "";
   return url;
 }
@@ -85,7 +83,11 @@ export async function probeApprovedUrl(
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get("location");
       if (!location || redirectCount === 3) {
-        return { ok: false, latencyMs: Date.now() - startedAt, statusCode: response.status };
+        return {
+          ok: false,
+          latencyMs: Date.now() - startedAt,
+          statusCode: response.status,
+        };
       }
       current = validateOutboundUrl(new URL(location, current).toString());
       continue;
