@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       const entry = sourcesByMedia.get(src.mediaId) ?? {
         total: 0,
         active: 0,
-        maxQuality: "720p",
+        maxQuality: "Unverified",
       };
       entry.total += 1;
       if (src.status === "active" && src.isActive) {
@@ -45,6 +45,8 @@ export async function GET(request: NextRequest) {
           entry.maxQuality = "4K";
         } else if (src.quality === "1080p" && entry.maxQuality !== "4K") {
           entry.maxQuality = "1080p";
+        } else if (src.quality === "720p" && entry.maxQuality === "Unverified") {
+          entry.maxQuality = "720p";
         }
       }
       sourcesByMedia.set(src.mediaId, entry);
