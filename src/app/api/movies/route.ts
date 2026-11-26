@@ -145,9 +145,9 @@ export async function POST(request: NextRequest) {
         format,
         season: Number(season),
         episode: Number(episode),
-        status: "active",
-        latencyMs: 30,
-        isActive: true,
+        status: "pending",
+        latencyMs: 0,
+        isActive: false,
       })
       .returning();
 
