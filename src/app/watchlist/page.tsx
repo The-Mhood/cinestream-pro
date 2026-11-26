@@ -77,14 +77,16 @@ export default function WatchlistPage() {
           </p>
 
           <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={loginDemo}
-              className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-300"
-            >
-              <Sparkles className="h-4 w-4" />
-              Instant Demo Sign-In
-            </button>
+            {process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN === "true" && (
+              <button
+                type="button"
+                onClick={loginDemo}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-6 py-3 text-sm font-bold text-slate-950 transition hover:bg-amber-300"
+              >
+                <Sparkles className="h-4 w-4" />
+                Instant Demo Sign-In
+              </button>
+            )}
             <button
               type="button"
               onClick={() => openAuthModal("login")}
