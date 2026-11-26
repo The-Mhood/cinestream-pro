@@ -205,6 +205,7 @@ STREAM_PROBE_ALLOWED_HOSTS=media.example.org,cdn.example.org
 # Recursive security discovery: domains you own or are authorized to assess
 DISCOVERY_ALLOWED_HOSTS=media.example.org,cdn.example.org
 DISCOVERY_API_KEY=generate-a-long-random-secret
+DISCOVERY_ADMIN_EMAILS=you@example.com
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 
 # Services
@@ -430,8 +431,10 @@ curl -X POST "http://localhost:8000/api/discovery/crawl" \
   -d '{"start_urls":["https://media.yourdomain.com/"],"max_pages":50,"max_depth":2}'
 ```
 
-The endpoint requires `DISCOVERY_API_KEY`; it is disabled when the key or
-authorized-host allowlist is missing. The API returns a discovery report and
+The endpoint requires `DISCOVERY_API_KEY`, an authenticated account with the
+`admin` role, and an email present in `DISCOVERY_ADMIN_EMAILS`; it is disabled
+when any required configuration is missing. The public demo account is explicitly
+demoted to the regular `user` role. The API returns a discovery report and
 does not automatically add discovered references to the playback catalogue.
 
 Source registration and server-side health checks are separately restricted by
