@@ -38,7 +38,6 @@ interface VideoPlayerProps {
   autoPlay?: boolean;
   failoverNotice?: string | null;
   onServerError: (failedSource: StreamSourceItem) => void;
-  onServerHealthy?: (source: StreamSourceItem) => void;
   onProgressUpdate?: (seconds: number) => void;
 }
 
@@ -55,12 +54,10 @@ export default function VideoPlayer({
   autoPlay = false,
   failoverNotice,
   onServerError,
-  onServerHealthy,
   onProgressUpdate,
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const hasReportedHealthyRef = useRef(false);
   const lastSavedProgressRef = useRef(0);
   const initialSeekAppliedRef = useRef(false);
 
@@ -78,7 +75,6 @@ export default function VideoPlayer({
     setLoadingStream(true);
     setHlsLevels([]);
     setSelectedLevel(-1);
-    hasReportedHealthyRef.current = false;
     initialSeekAppliedRef.current = false;
     setStreamStatusText(`Connecting to ${source.providerName}...`);
 
@@ -132,10 +128,6 @@ export default function VideoPlayer({
         if (autoPlay) {
           video.play().catch(() => {});
         }
-        if (!hasReportedHealthyRef.current) {
-          hasReportedHealthyRef.current = true;
-          onServerHealthy?.(source);
-        }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -164,10 +156,6 @@ export default function VideoPlayer({
         if (autoPlay) {
           video.play().catch(() => {});
         }
-        if (!hasReportedHealthyRef.current) {
-          hasReportedHealthyRef.current = true;
-          onServerHealthy?.(source);
-        }
       };
       const handleError = () => {
         setLoadingStream(false);
@@ -182,7 +170,7 @@ export default function VideoPlayer({
         video.removeEventListener("error", handleError);
       };
     }
-  }, [source, autoPlay, initialTime, onServerError, onServerHealthy]);
+  }, [source, autoPlay, initialTime, onServerError]);
 
   useEffect(() => {
     if (videoRef.current) {
