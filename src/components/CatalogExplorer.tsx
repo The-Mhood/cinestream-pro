@@ -179,7 +179,7 @@ export default function CatalogExplorer({
                   <span>{heroItem.genres}</span>
                   <span>•</span>
                   <span className="font-semibold text-amber-400">
-                    {heroItem.maxQuality ?? "Unverified"} Best verified quality
+                    {heroItem.maxQuality && heroItem.maxQuality !== "Unverified" ? `${heroItem.maxQuality} verified` : "Sources unverified"}
                   </span>
                 </div>
 
