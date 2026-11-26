@@ -8,7 +8,7 @@ import {
   watchlistItems,
 } from "@/db/schema";
 import { hashPassword } from "./auth";
-import { count, eq, inArray, like, or } from "drizzle-orm";
+import { count, eq, inArray } from "drizzle-orm";
 
 let seedPromise: Promise<void> | null = null;
 
@@ -45,6 +45,8 @@ async function runSeed() {
     .limit(1);
 
   if (legacySeedRun) {
+    // Old browser playback events could mark arbitrary sources active. None
+    // of those pre-migration states are trusted as server-side verification.
     await db
       .update(streamSources)
       .set({
@@ -53,14 +55,7 @@ async function runSeed() {
         latencyMs: 0,
         successCount: 0,
         failCount: 0,
-      })
-      .where(or(
-        like(streamSources.url, "%test-streams.mux.dev%"),
-        like(streamSources.url, "%demo.unified-streaming.com%"),
-        like(streamSources.url, "%commondatastorage.googleapis.com%"),
-        like(streamSources.url, "%devstreaming-cdn.apple.com%"),
-        like(streamSources.url, "%offline-mirror.invalid%")
-      ));
+      });
 
     await db
       .update(providers)
