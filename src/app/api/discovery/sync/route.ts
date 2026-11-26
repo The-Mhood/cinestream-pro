@@ -222,7 +222,10 @@ export async function POST() {
         }
 
         if (mediaId) {
-          await db.update(mediaItems).set(values).where(eq(mediaItems.id, mediaId));
+          // Preserve the first stable application slug when multiple providers
+          // report the same TMDB title.
+          const { slug: _stableSlug, ...updateValues } = values;
+          await db.update(mediaItems).set(updateValues).where(eq(mediaItems.id, mediaId));
           totals.titlesUpdated += 1;
         } else {
           const [created] = await db.insert(mediaItems).values(values).returning({ id: mediaItems.id });
