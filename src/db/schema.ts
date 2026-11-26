@@ -44,7 +44,7 @@ export const providers = pgTable("providers", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   baseUrl: text("base_url").notNull(),
-  status: text("status").notNull().default("active"), // 'active' | 'degraded' | 'offline'
+  status: text("status").notNull().default("unverified"), // provider status is set after verification
   avgLatencyMs: integer("avg_latency_ms").notNull().default(45),
   uptimePercent: doublePrecision("uptime_percent").notNull().default(99.2),
   totalStreamsIndexed: integer("total_streams_indexed").notNull().default(0),
@@ -67,10 +67,10 @@ export const streamSources = pgTable("stream_sources", {
   language: text("language").notNull().default("English"),
   season: integer("season").notNull().default(1),
   episode: integer("episode").notNull().default(1),
-  status: text("status").notNull().default("active"), // 'active' | 'degraded' | 'offline'
-  latencyMs: integer("latency_ms").notNull().default(38),
-  isActive: boolean("is_active").notNull().default(true),
-  successCount: integer("success_count").notNull().default(12),
+  status: text("status").notNull().default("pending"), // pending until server-side verification
+  latencyMs: integer("latency_ms").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(false),
+  successCount: integer("success_count").notNull().default(0),
   failCount: integer("fail_count").notNull().default(0),
   lastCheckedAt: timestamp("last_checked_at").defaultNow().notNull(),
 });
