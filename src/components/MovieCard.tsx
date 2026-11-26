@@ -21,6 +21,9 @@ export interface CatalogItem {
   episodesCount: number;
   isTrending: boolean;
   discoveredVia: string;
+  sourceIdentifier?: string | null;
+  licenseUrl?: string | null;
+  attribution?: string | null;
   sourceCount?: number;
   activeSourceCount?: number;
   maxQuality?: string;
