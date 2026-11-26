@@ -8,7 +8,7 @@ import {
   watchlistItems,
 } from "@/db/schema";
 import { hashPassword } from "./auth";
-import { count } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 
 let seedPromise: Promise<void> | null = null;
 
@@ -24,6 +24,12 @@ export async function ensureSeeded() {
 }
 
 async function runSeed() {
+  // The public demo credentials must never grant administrative privileges.
+  await db
+    .update(users)
+    .set({ role: "user" })
+    .where(eq(users.email, "demo@cinestream.pro"));
+
   const [{ value: mediaCount }] = await db
     .select({ value: count() })
     .from(mediaItems);
@@ -39,7 +45,7 @@ async function runSeed() {
       email: "demo@cinestream.pro",
       name: "Alex Mercer",
       passwordHash: hashPassword("cinestream"),
-      role: "admin",
+      role: "user",
     })
     .onConflictDoNothing()
     .returning();
