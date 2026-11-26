@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { mediaItems, streamSources } from "@/db/schema";
 import { ensureSeeded } from "@/lib/seed";
 import { desc, eq } from "drizzle-orm";
+import { validateOutboundUrl } from "@/lib/server/safe-url";
 
 export const dynamic = "force-dynamic";
 
@@ -106,14 +107,14 @@ export async function POST(request: NextRequest) {
       episode = 1,
     } = body;
 
-    if (!mediaId || !providerName || !url) {
+    if (!mediaId || !providerName || typeof url !== "string" || !url.trim()) {
       return NextResponse.json(
         { error: "mediaId, providerName, and url are required" },
         { status: 400 }
       );
     }
 
-    const [media] = await db
+    let approvedUrl: URL;\n    try {\n      approvedUrl = validateOutboundUrl(url);\n    } catch (error) {\n      return NextResponse.json(\n        { error: error instanceof Error ? error.message : "Source URL is not permitted" },\n        { status: 400 }\n      );\n    }\n\n    const [media] = await db
       .select()
       .from(mediaItems)
       .where(eq(mediaItems.id, Number(mediaId)))
