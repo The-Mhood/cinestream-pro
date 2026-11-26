@@ -15,7 +15,6 @@ import os
 import socket
 import time
 from collections import deque
-from functools import lru_cache
 from dataclasses import asdict, dataclass, field
 from typing import Iterable
 from urllib.parse import urldefrag, urljoin, urlsplit, urlunsplit
@@ -65,7 +64,6 @@ def _host_allowlist(values: Iterable[str]) -> set[str]:
     return {value.strip().lower().rstrip(".") for value in values if value.strip()}
 
 
-@lru_cache(maxsize=256)
 def _is_public_hostname(hostname: str) -> bool:
     """Reject IP literals and hostnames resolving to any non-global address."""
     try:
@@ -115,8 +113,12 @@ def normalize_scoped_url(value: str, allowed_hosts: set[str]) -> str:
         raise ScopeViolation("Non-standard ports are not allowed")
     if hostname not in allowed_hosts:
         raise ScopeViolation("Hostname is outside DISCOVERY_ALLOWED_HOSTS")
-    if not _is_public_hostname(hostname):
-        raise ScopeViolation("Hostname does not resolve exclusively to public IPs")
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        raise ScopeViolation("IP-literal destinations are not allowed")
 
     clean = parsed._replace(fragment="")
     return urlunsplit(clean)
@@ -152,6 +154,12 @@ class AuthorizedSiteCrawler:
         current = normalize_scoped_url(initial_url, self.allowed_hosts)
 
         for _ in range(4):
+            hostname = urlsplit(current).hostname or ""
+            if not _is_public_hostname(hostname):
+                raise ScopeViolation(
+                    "Hostname does not resolve exclusively to public IPs"
+                )
+
             response = self.session.get(
                 current,
                 timeout=self.timeout,
