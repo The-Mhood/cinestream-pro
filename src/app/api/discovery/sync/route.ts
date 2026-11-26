@@ -135,9 +135,13 @@ async function readFeed(name: string, env: string, slug: string) {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) throw new Error(`${name} feed returned HTTP ${response.status}`);
-  const feed = await response.json() as ProviderFeed;
-  if (feed.version !== 1 || !Array.isArray(feed.items)) {
-    throw new Error(`${name} feed does not match CineStream feed contract v1`);
+  const declaredLength = Number(response.headers.get("content-length") ?? 0);
+  if (declaredLength > 10_000_000) throw new Error(`${name} feed exceeds the 10 MB limit`);
+  const body = await response.text();
+  if (body.length > 10_000_000) throw new Error(`${name} feed exceeds the 10 MB limit`);
+  const feed = JSON.parse(body) as ProviderFeed;
+  if (feed.version !== 1 || !Array.isArray(feed.items) || feed.items.length > 5000) {
+    throw new Error(`${name} feed does not match CineStream feed contract v1 or exceeds 5,000 items`);
   }
   return { configured: true as const, provider: name, slug, feed };
 }
@@ -222,9 +226,11 @@ export async function POST() {
           totals.titlesUpdated += 1;
         } else {
           const [created] = await db.insert(mediaItems).values(values).returning({ id: mediaItems.id });
-          mediaId = created.id;
+          mediaId = created?.id;
+          if (!mediaId) throw new Error(`Could not create catalogue record for ${item.title}`);
           totals.titlesCreated += 1;
         }
+        if (!mediaId) throw new Error(`Could not resolve catalogue record for ${item.title}`);
 
         for (const source of flattenSources(item)) {
           try {
