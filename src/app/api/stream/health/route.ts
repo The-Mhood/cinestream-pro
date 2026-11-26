@@ -24,7 +24,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Source not found" }, { status: 404 });
   }
 
-  try {\n    validateOutboundUrl(source.url);\n  } catch (error) {\n    return NextResponse.json(\n      { error: error instanceof Error ? error.message : "Source host is not approved" },\n      { status: 403 }\n    );\n  }\n\n  const result = await probeApprovedUrl(source.url).catch(() => ({\n    ok: false, latencyMs: 999, statusCode: null,\n  }));
+  try {
+    validateOutboundUrl(source.url);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Source host is not approved" },
+      { status: 403 }
+    );
+  }
+
+  const result = await probeApprovedUrl(source.url).catch(() => ({
+    ok: false, latencyMs: 999, statusCode: null,
+  }));
   const newStatus = result.ok ? "active" : "offline";
 
   const [updated] = await db
@@ -97,7 +108,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ source: updated });
     }
 
-    try {\n      validateOutboundUrl(source.url);\n    } catch (error) {\n      return NextResponse.json(\n        { error: error instanceof Error ? error.message : "Source host is not approved" },\n        { status: 403 }\n      );\n    }\n\n    const result = await probeApprovedUrl(source.url).catch(() => ({\n      ok: false, latencyMs: 999, statusCode: null,\n    }));
+    try {
+      validateOutboundUrl(source.url);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Source host is not approved" },
+        { status: 403 }
+      );
+    }
+
+    const result = await probeApprovedUrl(source.url).catch(() => ({
+      ok: false, latencyMs: 999, statusCode: null,
+    }));
     const [updated] = await db
       .update(streamSources)
       .set({
