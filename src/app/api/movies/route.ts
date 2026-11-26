@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
         const stats = sourcesByMedia.get(item.id) ?? {
           total: 0,
           active: 0,
-          maxQuality: "1080p",
+          maxQuality: "Unverified",
         };
         return {
           ...item,
