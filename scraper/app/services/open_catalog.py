@@ -134,6 +134,33 @@ class InternetArchiveOpenCatalog:
         response.raise_for_status()
         return response.json()
 
+    def _verified_mp4_url(self, identifier: str, candidates: list[dict[str, Any]]) -> tuple[str, str] | None:
+        """Return the first publicly reachable MP4, checking the actual file endpoint."""
+        for entry in candidates:
+            filename = str(entry.get("name", ""))
+            url = ARCHIVE_DOWNLOAD_URL.format(
+                identifier=quote(identifier, safe=""),
+                filename=quote(filename, safe="/"),
+            )
+            try:
+                response = self.http.get(
+                    url,
+                    headers={"Range": "bytes=0-0"},
+                    stream=True,
+                    timeout=self.timeout,
+                )
+                try:
+                    content_type = response.headers.get("Content-Type", "").split(";")[0].lower()
+                    if response.status_code in (200, 206) and content_type in {
+                        "video/mp4", "application/mp4", "application/octet-stream"
+                    }:
+                        return filename, response.url
+                finally:
+                    response.close()
+            except requests.RequestException as exc:
+                logger.debug("MP4 probe failed for %s/%s: %s", identifier, filename, exc)
+        return None
+
     def import_item(self, record: dict[str, Any]) -> bool:
         identifier = str(record.get("identifier", "")).strip()
         title = _plain_text(record.get("title"))
@@ -155,14 +182,14 @@ class InternetArchiveOpenCatalog:
             logger.info("Skipping %s: no public MP4 file", identifier)
             return False
 
-        # Prefer the largest available MP4 for a useful playback rendition.
+        # Prefer the largest rendition, but only store a URL that answers a
+        # one-byte HTTP range request as actual MP4 content.
         candidates.sort(key=lambda entry: int(entry.get("size", 0) or 0), reverse=True)
-        selected = candidates[0]
-        filename = str(selected["name"])
-        playback_url = ARCHIVE_DOWNLOAD_URL.format(
-            identifier=quote(identifier, safe=""),
-            filename=quote(filename, safe="/"),
-        )
+        verified = self._verified_mp4_url(identifier, candidates)
+        if not verified:
+            logger.info("Skipping %s: no publicly reachable MP4 rendition", identifier)
+            return False
+        filename, playback_url = verified
         creator = _plain_text(item_metadata.get("creator") or record.get("creator"))
         attribution = creator or "Creator not specified in Internet Archive metadata"
         year_value = _plain_text(item_metadata.get("year") or item_metadata.get("date") or record.get("year"))
