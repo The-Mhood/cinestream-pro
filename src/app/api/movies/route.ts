@@ -38,10 +38,12 @@ export async function GET(request: NextRequest) {
       if (src.status === "active" && src.isActive) {
         entry.active += 1;
       }
-      if (src.quality === "4K") {
-        entry.maxQuality = "4K";
-      } else if (src.quality === "1080p" && entry.maxQuality !== "4K") {
-        entry.maxQuality = "1080p";
+      if (src.status === "active" && src.isActive) {
+        if (src.quality === "4K") {
+          entry.maxQuality = "4K";
+        } else if (src.quality === "1080p" && entry.maxQuality !== "4K") {
+          entry.maxQuality = "1080p";
+        }
       }
       sourcesByMedia.set(src.mediaId, entry);
     }
