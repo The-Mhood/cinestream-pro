@@ -4,6 +4,7 @@ import { mediaItems, streamSources, watchlistItems } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/seed";
 import { and, desc, eq } from "drizzle-orm";
+import { checkRateLimit } from "@/lib/server/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -67,24 +68,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const {
-      mediaId,
-      action = "toggle",
-      progressSeconds,
-      lastServerId,
-    } = body as {
-      mediaId: number;
-      action?: "toggle" | "progress";
-      progressSeconds?: number;
-      lastServerId?: number;
-    };
-
-    if (!mediaId) {
+    const rate = checkRateLimit(`watchlist:${user.id}`, 120, 60 * 1000);
+    if (!rate.allowed) {
       return NextResponse.json(
-        { error: "mediaId is required" },
+        { error: "Watchlist update rate limit reached." },
+        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } }
+      );
+    }
+
+    const body = await request.json();
+    const mediaId = Number(body.mediaId);
+    const action = body.action ?? "toggle";
+    const progressSeconds = body.progressSeconds;
+    const lastServerId = body.lastServerId === undefined ? undefined : Number(body.lastServerId);
+
+    if (!Number.isSafeInteger(mediaId) || mediaId < 1) {
+      return NextResponse.json(
+        { error: "A valid mediaId is required" },
         { status: 400 }
       );
+    }
+    if (action !== "toggle" && action !== "progress") {
+      return NextResponse.json({ error: "Unsupported watchlist action" }, { status: 400 });
+    }
+    if (
+      action === "progress" &&
+      (typeof progressSeconds !== "number" ||
+        !Number.isSafeInteger(progressSeconds) ||
+        progressSeconds < 0 ||
+        progressSeconds > 86400000)
+    ) {
+      return NextResponse.json({ error: "Invalid playback progress" }, { status: 400 });
+    }
+    if (lastServerId !== undefined) {
+      if (!Number.isSafeInteger(lastServerId) || lastServerId < 1) {
+        return NextResponse.json({ error: "Invalid source reference" }, { status: 400 });
+      }
+      const [verifiedSource] = await db
+        .select({ id: streamSources.id })
+        .from(streamSources)
+        .where(and(
+          eq(streamSources.id, lastServerId),
+          eq(streamSources.mediaId, mediaId),
+          eq(streamSources.status, "active"),
+          eq(streamSources.isActive, true)
+        ))
+        .limit(1);
+      if (!verifiedSource) {
+        return NextResponse.json({ error: "Playback source is not verified for this title" }, { status: 400 });
+      }
     }
 
     const [existing] = await db
@@ -93,7 +125,7 @@ export async function POST(request: NextRequest) {
       .where(
         and(
           eq(watchlistItems.userId, user.id),
-          eq(watchlistItems.mediaId, Number(mediaId))
+          eq(watchlistItems.mediaId, mediaId)
         )
       )
       .limit(1);
@@ -104,9 +136,7 @@ export async function POST(request: NextRequest) {
           .update(watchlistItems)
           .set({
             progressSeconds:
-              typeof progressSeconds === "number"
-                ? Math.floor(progressSeconds)
-                : existing.progressSeconds,
+              progressSeconds,
             lastServerId: lastServerId ?? existing.lastServerId,
             lastWatchedAt: new Date(),
           })
@@ -118,12 +148,10 @@ export async function POST(request: NextRequest) {
           .insert(watchlistItems)
           .values({
             userId: user.id,
-            mediaId: Number(mediaId),
+            mediaId,
             inWatchlist: false,
             progressSeconds:
-              typeof progressSeconds === "number"
-                ? Math.floor(progressSeconds)
-                : 0,
+              progressSeconds,
             lastServerId: lastServerId ?? null,
           })
           .returning();
