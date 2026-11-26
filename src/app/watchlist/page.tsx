@@ -168,7 +168,7 @@ export default function WatchlistPage() {
                           Resume Stream
                         </span>
                         <span className="text-[11px] text-slate-500">
-                          {entry.media.activeSourceCount ?? 3} Servers
+                          {entry.media.activeSourceCount ?? 0} Servers
                         </span>
                       </div>
                     </div>
