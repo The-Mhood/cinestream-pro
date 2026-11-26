@@ -260,7 +260,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 <input
                   type="password"
                   required
-                  minLength={6}
+                  minLength={mode === "register" ? 12 : 1}
+                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
