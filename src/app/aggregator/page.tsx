@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/AuthContext";
+import CatalogImportPanel from "@/components/CatalogImportPanel";
 import Link from "next/link";
 import {
   Activity,
@@ -147,6 +148,8 @@ export default function AggregatorPage() {
       </div>
 
       {user?.role === "admin" && (
+        <>
+        <CatalogImportPanel />
         <section className="mb-8 rounded-2xl border border-sky-500/25 bg-[#0c1628] p-6">
           <div className="mb-4">
             <h2 className="font-display text-lg font-bold text-white">Authorized Site Discovery</h2>
@@ -213,6 +216,7 @@ export default function AggregatorPage() {
             </div>
           )}
         </section>
+        </>
       )}
 
       {/* KPI Grid */}
