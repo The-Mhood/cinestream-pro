@@ -201,6 +201,8 @@ STREAM_PROBE_ALLOWED_HOSTS=media.example.org,cdn.example.org
 
 # Recursive security discovery: domains you own or are authorized to assess
 DISCOVERY_ALLOWED_HOSTS=media.example.org,cdn.example.org
+DISCOVERY_API_KEY=generate-a-long-random-secret
+CORS_ALLOWED_ORIGINS=http://localhost:3000
 
 # Services
 LOG_LEVEL=info
@@ -411,6 +413,19 @@ The crawler requires HTTPS, exact host allowlisting, public DNS resolution, a
 maximum depth of five, a maximum of 500 pages, bounded response sizes, timeouts,
 and redirect revalidation. It runs sequentially with a delay between requests.
 Use only domains covered by your authorization.
+
+The backend exposes the same crawler through an authenticated endpoint:
+
+```bash
+curl -X POST "http://localhost:8000/api/discovery/crawl" \
+  -H "Authorization: Bearer $DISCOVERY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"start_urls":["https://media.yourdomain.com/"],"max_pages":50,"max_depth":2}'
+```
+
+The endpoint requires `DISCOVERY_API_KEY`; it is disabled when the key or
+authorized-host allowlist is missing. The API returns a discovery report and
+does not automatically add discovered references to the playback catalogue.
 
 Source registration and server-side health checks are separately restricted by
 \`STREAM_PROBE_ALLOWED_HOSTS\`. Configure exact hostnames there; unlisted hosts,
