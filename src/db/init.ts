@@ -46,6 +46,9 @@ async function initializeDatabase() {
         seasons_count INTEGER NOT NULL DEFAULT 1,
         episodes_count INTEGER NOT NULL DEFAULT 1,
         tmdb_id INTEGER,
+        source_identifier TEXT,
+        license_url TEXT,
+        attribution TEXT,
         is_trending BOOLEAN NOT NULL DEFAULT FALSE,
         discovered_via TEXT NOT NULL DEFAULT 'CineStream Index',
         created_at TIMESTAMP NOT NULL DEFAULT NOW()
