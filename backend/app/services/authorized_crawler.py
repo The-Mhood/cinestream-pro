@@ -279,14 +279,16 @@ class AuthorizedSiteCrawler:
         )
 
     def crawl(self, start_urls: Iterable[str]) -> CrawlReport:
-        starts = [
-            normalize_scoped_url(url, self.allowed_hosts) for url in start_urls
-        ]
-        report = CrawlReport(start_urls=starts, allowed_hosts=sorted(self.allowed_hosts))
-        queue = deque((url, 0) for url in starts)
+        report = CrawlReport(start_urls=[], allowed_hosts=sorted(self.allowed_hosts))
         visited: set[str] = set()
 
         try:
+            starts = [
+                normalize_scoped_url(url, self.allowed_hosts) for url in start_urls
+            ]
+            report.start_urls = starts
+            queue = deque((url, 0) for url in starts)
+
             while queue and len(report.pages) < self.max_pages:
                 url, depth = queue.popleft()
                 if url in visited:
