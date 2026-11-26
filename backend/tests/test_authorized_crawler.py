@@ -89,5 +89,38 @@ class ExtractionTests(unittest.TestCase):
             AuthorizedSiteCrawler(allowed_hosts=[])
 
 
+
+class DnsSafetyTests(unittest.TestCase):
+    @patch(
+        "app.services.authorized_crawler.socket.getaddrinfo",
+        return_value=[(None, None, None, None, ("93.184.216.34", 443))],
+    )
+    def test_accepts_public_dns_address(self, _lookup):
+        from app.services.authorized_crawler import _is_public_hostname
+
+        self.assertTrue(_is_public_hostname("media.example.org"))
+
+    @patch(
+        "app.services.authorized_crawler.socket.getaddrinfo",
+        return_value=[(None, None, None, None, ("127.0.0.1", 443))],
+    )
+    def test_rejects_private_dns_address(self, _lookup):
+        from app.services.authorized_crawler import _is_public_hostname
+
+        self.assertFalse(_is_public_hostname("media.example.org"))
+
+    @patch(
+        "app.services.authorized_crawler.socket.getaddrinfo",
+        return_value=[
+            (None, None, None, None, ("93.184.216.34", 443)),
+            (None, None, None, None, ("10.0.0.8", 443)),
+        ],
+    )
+    def test_rejects_hostname_with_mixed_public_and_private_dns(self, _lookup):
+        from app.services.authorized_crawler import _is_public_hostname
+
+        self.assertFalse(_is_public_hostname("media.example.org"))
+
+
 if __name__ == "__main__":
     unittest.main()
