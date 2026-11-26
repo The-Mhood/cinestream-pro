@@ -255,7 +255,7 @@ export default function VideoPlayer({
         {/* Simulated Subtitles Overlay when toggled */}
         {captionsOn && !loadingStream && (
           <div className="pointer-events-none absolute bottom-14 left-1/2 -translate-x-1/2 rounded-lg bg-black/80 px-3.5 py-1.5 text-center text-xs font-medium text-white shadow">
-            [CC • {source.language}] {title} — Adaptive Audio Track Active
+            Caption preview for {source.language} — no subtitle track is loaded
           </div>
         )}
       </div>
