@@ -45,8 +45,8 @@ export const providers = pgTable("providers", {
   name: text("name").notNull(),
   baseUrl: text("base_url").notNull(),
   status: text("status").notNull().default("unverified"), // provider status is set after verification
-  avgLatencyMs: integer("avg_latency_ms").notNull().default(45),
-  uptimePercent: doublePrecision("uptime_percent").notNull().default(99.2),
+  avgLatencyMs: integer("avg_latency_ms").notNull().default(0),
+  uptimePercent: doublePrecision("uptime_percent").notNull().default(0),
   totalStreamsIndexed: integer("total_streams_indexed").notNull().default(0),
   lastCheckedAt: timestamp("last_checked_at").defaultNow().notNull(),
 });
