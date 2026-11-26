@@ -44,8 +44,8 @@ jobs:
         with:
           node-version: "22"
       - run: npm install
-      - name: Report dependency audit findings
-        run: npm audit || true
+      - name: Enforce dependency security audit
+        run: npm audit --audit-level=moderate
       - name: Initialize PostgreSQL schema
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aggregator
