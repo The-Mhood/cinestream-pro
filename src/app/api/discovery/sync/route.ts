@@ -224,8 +224,23 @@ export async function POST() {
         if (mediaId) {
           // Preserve the first stable application slug when multiple providers
           // report the same TMDB title.
-          const { slug: _stableSlug, ...updateValues } = values;
-          await db.update(mediaItems).set(updateValues).where(eq(mediaItems.id, mediaId));
+          await db.update(mediaItems).set({
+            title: values.title,
+            type: values.type,
+            posterPath: values.posterPath,
+            backdropPath: values.backdropPath,
+            overview: values.overview,
+            releaseYear: values.releaseYear,
+            durationMinutes: values.durationMinutes,
+            rating: values.rating,
+            genres: values.genres,
+            castList: values.castList,
+            seasonsCount: values.seasonsCount,
+            episodesCount: values.episodesCount,
+            tmdbId: values.tmdbId,
+            isTrending: values.isTrending,
+            discoveredVia: values.discoveredVia,
+          }).where(eq(mediaItems.id, mediaId));
           totals.titlesUpdated += 1;
         } else {
           const [created] = await db.insert(mediaItems).values(values).returning({ id: mediaItems.id });
