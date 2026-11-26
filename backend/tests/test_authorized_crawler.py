@@ -62,6 +62,7 @@ class ExtractionTests(unittest.TestCase):
             <a href="https://outside.example.net/movie">Out of scope</a>
             <video src="/media/clip.mp4"></video>
             <source src="https://outside.example.net/clip.mp4">
+            <source type="application/vnd.apple.mpegurl" src="/streams/master">
             <iframe src="/embed/player/123"></iframe>
             <iframe src="https://third-party.example/embed/abc"></iframe>
           </body>
@@ -80,6 +81,7 @@ class ExtractionTests(unittest.TestCase):
             [
                 "https://media.example.org/assets/preview.mp4",
                 "https://media.example.org/media/clip.mp4",
+                "https://media.example.org/streams/master",
             ],
         )
         self.assertEqual(page.external_embed_hosts, ["third-party.example"])
