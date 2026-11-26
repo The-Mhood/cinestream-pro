@@ -114,7 +114,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let approvedUrl: URL;\n    try {\n      approvedUrl = validateOutboundUrl(url);\n    } catch (error) {\n      return NextResponse.json(\n        { error: error instanceof Error ? error.message : "Source URL is not permitted" },\n        { status: 400 }\n      );\n    }\n\n    const [media] = await db
+    let approvedUrl: URL;
+    try {
+      approvedUrl = validateOutboundUrl(url);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Source URL is not permitted" },
+        { status: 400 }
+      );
+    }
+
+    const [media] = await db
       .select()
       .from(mediaItems)
       .where(eq(mediaItems.id, Number(mediaId)))
@@ -130,7 +140,7 @@ export async function POST(request: NextRequest) {
         mediaId: media.id,
         providerName,
         serverLabel: serverLabel || `${providerName} Custom`,
-        url,
+        url: approvedUrl.toString(),
         quality,
         format,
         season: Number(season),
