@@ -187,6 +187,9 @@ docker-compose down -v && rm -rf volumes/ && docker-compose up -d
 
 ### Environment Variables (.env)
 ```env
+# Authentication (required; generate with openssl rand -hex 32)
+AUTH_SECRET=replace-with-a-long-random-secret
+
 # Database
 DATABASE_URL=postgresql://user:pass@db:5432/aggregator
 
@@ -390,6 +393,10 @@ MIT License - See LICENSE file for details
 
 
 ---
+
+The application now fails closed if `AUTH_SECRET` is missing; configure a
+unique random value before signing in or deploying. Do not commit your real
+`.env` file or share these secrets.
 
 ## Authorized Website Discovery
 
