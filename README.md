@@ -399,6 +399,18 @@ The application now fails closed if `AUTH_SECRET` is missing; configure a
 unique random value before signing in or deploying. Do not commit your real
 `.env` file or share these secrets.
 
+To authorize an administrator for discovery, set that account's email in
+`DISCOVERY_ADMIN_EMAILS` and promote the same account in PostgreSQL:
+
+```sql
+UPDATE users
+SET role = 'admin'
+WHERE email = 'your-admin-email@example.com';
+```
+
+The seeded `demo@cinestream.pro` account is deliberately kept at the regular
+`user` role and cannot access the discovery controls.
+
 ## Authorized Website Discovery
 
 The backend includes a bounded crawler for websites that you own or are explicitly
