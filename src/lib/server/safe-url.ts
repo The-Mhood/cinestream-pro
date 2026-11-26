@@ -101,10 +101,9 @@ export async function verifyApprovedMediaUrl(
   for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4000);
-    let response: Response;
 
     try {
-      response = await fetch(current, {
+      const response = await fetch(current, {
         method: "GET",
         headers: {
           Range: "bytes=0-4095",
@@ -113,13 +112,23 @@ export async function verifyApprovedMediaUrl(
         redirect: "manual",
         signal: controller.signal,
       });
-    } finally {
-      clearTimeout(timer);
-    }
 
-    if ([301, 302, 303, 307, 308].includes(response.status)) {
-      const location = response.headers.get("location");
-      if (!location || redirectCount === 3) {
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        await response.body?.cancel().catch(() => undefined);
+        if (!location || redirectCount === 3) {
+          return {
+            ok: false,
+            latencyMs: Date.now() - startedAt,
+            statusCode: response.status,
+            detectedFormat: null,
+          };
+        }
+        current = validateOutboundUrl(new URL(location, current).toString());
+        continue;
+      }
+
+      if (response.status !== 200 && response.status !== 206) {
         await response.body?.cancel().catch(() => undefined);
         return {
           ok: false,
@@ -128,55 +137,44 @@ export async function verifyApprovedMediaUrl(
           detectedFormat: null,
         };
       }
-      await response.body?.cancel().catch(() => undefined);
-      current = validateOutboundUrl(new URL(location, current).toString());
-      continue;
-    }
 
-    if (response.status !== 200 && response.status !== 206) {
-      await response.body?.cancel().catch(() => undefined);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        return {
+          ok: false,
+          latencyMs: Date.now() - startedAt,
+          statusCode: response.status,
+          detectedFormat: null,
+        };
+      }
+
+      let firstChunk: Uint8Array | undefined;
+      try {
+        firstChunk = (await reader.read()).value;
+      } finally {
+        await reader.cancel().catch(() => undefined);
+      }
+
+      const detectedFormat = firstChunk
+        ? sniffMediaFormat(firstChunk.subarray(0, 4096))
+        : null;
+      const expected = expectedFormat.trim().toUpperCase();
+      const expectedMatches =
+        !expected ||
+        (expected === "HLS" && detectedFormat === "HLS") ||
+        ((expected === "DASH" || expected === "MPEG-DASH") && detectedFormat === "DASH") ||
+        (expected === "MP4" && detectedFormat === "MP4") ||
+        (expected === "WEBM" && detectedFormat === "WEBM");
+
       return {
-        ok: false,
-        latencyMs: Date.now() - startedAt,
+        ok: detectedFormat !== null && expectedMatches,
+        latencyMs: Math.max(1, Date.now() - startedAt),
         statusCode: response.status,
-        detectedFormat: null,
+        detectedFormat,
       };
-    }
-
-    const reader = response.body?.getReader();
-    if (!reader) {
-      return {
-        ok: false,
-        latencyMs: Date.now() - startedAt,
-        statusCode: response.status,
-        detectedFormat: null,
-      };
-    }
-
-    let firstChunk: Uint8Array | undefined;
-    try {
-      firstChunk = (await reader.read()).value;
     } finally {
-      await reader.cancel().catch(() => undefined);
+      clearTimeout(timer);
     }
-
-    const detectedFormat = firstChunk
-      ? sniffMediaFormat(firstChunk.subarray(0, 4096))
-      : null;
-    const expected = expectedFormat.trim().toUpperCase();
-    const expectedMatches =
-      !expected ||
-      (expected === "HLS" && detectedFormat === "HLS") ||
-      ((expected === "DASH" || expected === "MPEG-DASH") && detectedFormat === "DASH") ||
-      (expected === "MP4" && detectedFormat === "MP4") ||
-      (expected === "WEBM" && detectedFormat === "WEBM");
-
-    return {
-      ok: detectedFormat !== null && expectedMatches,
-      latencyMs: Math.max(1, Date.now() - startedAt),
-      statusCode: response.status,
-      detectedFormat,
-    };
   }
 
   return {
